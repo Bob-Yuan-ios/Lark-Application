@@ -267,8 +267,8 @@ export async function sendTextMessage(payload) {
   console.log(payload);
 
   const headers = {
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json'
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
   };
 
   try{
@@ -283,6 +283,8 @@ export async function sendTextMessage(payload) {
         console.log('mentions id:', mentions);
         saveMentions(JSON.parse(mentions));
       }
+      
+      return {code: 0};
     }else if (res.data.msg?.includes('access token is invalid')) {
 
       token = await getTenantToken(); // 强制刷新
@@ -293,6 +295,8 @@ export async function sendTextMessage(payload) {
         console.log('mentions id:', mentions);
         saveMentions(JSON.parse(mentions));
       }
+
+      return {code: 0};
     }
 
   }catch(err){
