@@ -5,5 +5,5 @@
 *.swp
 
 # 忽略config目录文件
-/src/config
+src/config
 
