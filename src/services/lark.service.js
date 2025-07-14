@@ -3,14 +3,13 @@ import dayjs from 'dayjs';
 
 import * as lark from '@larksuiteoapi/node-sdk';
 
-import { 
-  refreshToken
- } from './token.service.js';
+import {
+  getTenantToken
+} from './tokenManager.js';
 
 import { 
   APP_ID, 
-  APP_SECRET, 
-  TENANT_TOKEN
+  APP_SECRET
 } from '../config/index.js';
 
 const API = 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id';
@@ -242,49 +241,46 @@ async function robotSendMessage(chat_id) {
  * @returns 
  */
 export async function sendTextMessage(body) {
-  if (!TENANT_TOKEN.value) TENANT_TOKEN.value = await refreshToken();
 
-  let result = await doSend(body);
-  if (result.code === 99991663) {
-    TENANT_TOKEN.value = await refreshToken();
-    result = await doSend(body);
-  }
+ let token = await getTenantToken();
 
-  return result;
-}
-
-async function doSend(payload) {
-  try {
-    console.log('发送的数据');
+  console.log('发送的数据');
     console.log(payload);
-    const res = await axios.post(API, payload, {
-      headers: {
-        Authorization: `Bearer ${TENANT_TOKEN.value}`,
+
+    const headers = {
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
-    });
+   };
 
-    console.log('返回的结果:');
-    console.log(res.data);
+try{
+    const res = await axios.post(API, payload, { headers });
 
-    try{
-        const mentions = JSON.stringify(res.data.data.mentions);
-        if(mentions){
-            console.log('mentions id:', mentions);
-            saveMentions(JSON.parse(mentions));
-        }
-      }catch(err){
-          console.log(JSON.stringify(err));
-          return res.data;
-      } 
+    if(0 === res.data.code){
+      console.log('返回的结果:');
+      console.log(res.data);
 
+      const mentions = JSON.stringify(res.data.data.mentions);
+      if(mentions){
+          console.log('mentions id:', mentions);
+          saveMentions(JSON.parse(mentions));
+       }
+    }else if (res.data.msg?.includes('access token is invalid')) {
+
+      token = await getTenantToken(); // 强制刷新
+      headers.Authorization = `Bearer ${token}`;
+      const retryRes = await axios.post(url, data, { headers });
+      const mentions = JSON.stringify(retryRes.data.data.mentions);
+      if(mentions){
+          console.log('mentions id:', mentions);
+          saveMentions(JSON.parse(mentions));
+       }
+    }
+
+  }catch(err){
+    console.log(JSON.stringify(err));
     return res.data;
-  } catch (err) {
-    console.error('发送失败:', err.message);
-    return { code: -1, msg: err.message };
-  }
+  } 
 }
-
 
 function saveMentions(users) {
    users.forEach(user => {
