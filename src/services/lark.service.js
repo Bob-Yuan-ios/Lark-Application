@@ -43,12 +43,22 @@ export async function handleEventCallback(data) {
     console.log('\n接收到Lark的消息');
     console.log(JSON.stringify(data));
 
-    // 验证回调
+    // webhook验证
     if(data.type === 'url_verification'){
       return { challenge: data.challenge };
     }
 
-    /***        消息去重        ***/ 
+    setImmediate(() => handleEventReal(data));  // 业务异步跑  
+    return {code: 0};   
+}
+
+/**
+ * Lark事件真实业务处理
+ * @param {JSON} data 
+ * @returns 
+ */
+async function handleEventReal(data) {
+   /***        消息去重        ***/ 
     const { event_id, retry_cnt } = data;
     if (retry_cnt > 0) return { code: 0 };
     if (seenEvents.has(event_id)) return { code: 0 };
@@ -86,7 +96,7 @@ export async function handleCardCallback(data) {
   console.log('\n接收到用户点击事件:');
   console.log(JSON.stringify(data));
 
-  // 验证回调
+  // webhook验证
   if(data.type === 'url_verification'){
     return { challenge: data.challenge };
   }
@@ -95,6 +105,11 @@ export async function handleCardCallback(data) {
   return {code: 0};
 }
 
+/**
+ * Lark卡片真实业务处理
+ * @param {JSON} data 
+ * @returns 
+ */
 async function handleCardReal(data) {
   const { 
     operator: {
