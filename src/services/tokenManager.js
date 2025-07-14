@@ -3,7 +3,7 @@ import axios from 'axios';
 import { 
     APP_ID,
     APP_SECRET
- } from '../config';
+ } from '../config/index.js';
 
 let tenatToken = '';
 let expireAt = 0;

@@ -256,22 +256,22 @@ async function robotSendMessage(chat_id) {
 
 /**
  * 给lark发送文本消息
- * @param {string} body 发送的内容
+ * @param {string} payload 发送的内容
  * @returns 
  */
-export async function sendTextMessage(body) {
+export async function sendTextMessage(payload) {
 
- let token = await getTenantToken();
+  let token = await getTenantToken();
 
   console.log('发送的数据');
-    console.log(payload);
+  console.log(payload);
 
-    const headers = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-   };
+  const headers = {
+  Authorization: `Bearer ${token}`,
+  'Content-Type': 'application/json'
+  };
 
-try{
+  try{
     const res = await axios.post(API, payload, { headers });
 
     if(0 === res.data.code){
@@ -280,9 +280,9 @@ try{
 
       const mentions = JSON.stringify(res.data.data.mentions);
       if(mentions){
-          console.log('mentions id:', mentions);
-          saveMentions(JSON.parse(mentions));
-       }
+        console.log('mentions id:', mentions);
+        saveMentions(JSON.parse(mentions));
+      }
     }else if (res.data.msg?.includes('access token is invalid')) {
 
       token = await getTenantToken(); // 强制刷新
@@ -290,9 +290,9 @@ try{
       const retryRes = await axios.post(url, data, { headers });
       const mentions = JSON.stringify(retryRes.data.data.mentions);
       if(mentions){
-          console.log('mentions id:', mentions);
-          saveMentions(JSON.parse(mentions));
-       }
+        console.log('mentions id:', mentions);
+        saveMentions(JSON.parse(mentions));
+      }
     }
 
   }catch(err){
