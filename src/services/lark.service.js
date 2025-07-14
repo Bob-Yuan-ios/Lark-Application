@@ -14,6 +14,11 @@ import {
 
 const API = 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id';
 
+
+const template_upgrade_start = 'ctp_AAIy5bdcJ3Rl';
+const template_upgrade_process = 'ctp_AAIV1SKqwXnP';
+const template_upgrade_end = 'ctp_AAI1pp9Okj2I';
+
 // 事件去重
 const seenEvents = new Set();
 
@@ -31,7 +36,6 @@ const client = new lark.Client({
     appSecret: APP_SECRET,
     domain: lark.Domain.Lark
 });
-
 
  /**
   * 处理事件监听 发送给机器人的消息
@@ -169,7 +173,7 @@ async function handleCardReal(data) {
       },
       data: {
         receive_id: open_chat_id,
-        template_id: 'ctp_AAIV1SKqwXnP',
+        template_id: template_upgrade_process,
         template_variable: params
       }
   });
@@ -191,7 +195,7 @@ async function handleCardReal(data) {
         },
         data: {
           receive_id: open_chat_id,
-          template_id: 'ctp_AAI1pp9Okj2I',
+          template_id: template_upgrade_end,
           template_variable: template_variable
         }
     });
@@ -223,7 +227,7 @@ async function robotSendCard(chat_id, open_id) {
         },
         data: {
             receive_id: chat_id,
-            template_id: 'ctp_AAIy5bdcJ3Rl',
+            template_id: template_upgrade_start,
             template_variable: template_variable
         }
     });
