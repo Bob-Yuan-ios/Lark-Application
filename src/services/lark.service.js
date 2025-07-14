@@ -11,8 +11,7 @@ import {
   APP_ID, 
   APP_SECRET, 
   TENANT_TOKEN
- } from '../config/index.js';
-
+} from '../config/index.js';
 
 const API = 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id';
 
@@ -42,6 +41,14 @@ const client = new lark.Client({
   */
 export async function handleEventCallback(data) {
 
+    console.log('\n接收到Lark的消息');
+    console.log(JSON.stringify(data));
+
+    // 验证回调
+    if(data.type === 'url_verification'){
+      return { challenge: data.challenge };
+    }
+
     /***        消息去重        ***/ 
     const { event_id, retry_cnt } = data;
     if (retry_cnt > 0) return { code: 0 };
@@ -49,10 +56,7 @@ export async function handleEventCallback(data) {
     seenEvents.add(event_id);
     /***        消息去重        ***/ 
 
-    console.log('\n接收到Lark的消息');
-    console.log(JSON.stringify(data));
-
-    const {
+     const {
       message: { 
         chat_id,
         content
@@ -72,6 +76,117 @@ export async function handleEventCallback(data) {
 
     robotSendMessage(chat_id);
     return { code : '0'};
+}
+
+/**
+ * 响应卡片点击消息
+ * @param {Object} data lark发送的数据
+ * @returns 
+ */
+export async function handleCardCallback(data) {
+  console.log('\n接收到用户点击事件:');
+  console.log(JSON.stringify(data));
+
+  // 验证回调
+  if(data.type === 'url_verification'){
+    return { challenge: data.challenge };
+  }
+
+  setImmediate(() => handleCardReal(data));  // 业务异步跑  
+  return {code: 0};
+}
+
+async function handleCardReal(data) {
+  const { 
+    operator: {
+      open_id
+    },
+    context: {
+      open_chat_id,
+      open_message_id
+    },
+    action: {
+      value: { 
+        titleTxt,
+        redirectUrlTxt 
+      }
+    }
+  } = data.event;
+
+  /***        消息去重        ***/ 
+  const key = open_chat_id + open_message_id + open_id;
+  if (messageIds.has(key))  return { code: 0 };
+  messageIds.add(key);
+  /***        消息去重        ***/ 
+
+  // 需要写回去的新变量值
+  let openId = String(open_id);
+
+  console.log('\n读取缓存数组:');
+  console.log(mentionIds);
+
+  if(mentionIds.get(openId)){
+    const user = mentionIds.get(openId);
+    completeIds.set(user.id, user);
+    openId = user.name;
+
+  }else{
+    console.log('没有查找到用户信息');
+    return { code: 0 };
+  }
+
+  console.log('\nuser_name:' + openId);
+  const timeStr = dayjs().format('YYYY-MM-DD HH:mm');
+  console.log(timeStr);
+
+  const params = {
+     users: openId,    
+     timeStr: timeStr,  
+     titleTxt: titleTxt,
+     redirectUrl: redirectUrlTxt,
+     redirectUrlTxt: redirectUrlTxt
+  };
+  console.log('\n生成新的弹框组装的参数:', params);
+
+  // 生成新的弹框：显示已经完成的信息
+  await client.im.message.createByCard({
+      params: {
+        receive_id_type: "chat_id"
+      },
+      data: {
+        receive_id: open_chat_id,
+        template_id: 'ctp_AAIV1SKqwXnP',
+        template_variable: params
+      }
+  });
+
+  if(mentionIds.size > 0 && completeIds.size == mentionIds.size){
+    console.log('所有人已完成');
+
+    const men_id = 'ou_b38d19b1aa686c6a976e8886283dd285';
+    const template_variable = {
+      timeStr: timeStr,  
+      titleTxt: titleTxt,
+      mentionUser: `<at id="${men_id}"></at>`
+    };
+
+    // 生成新的弹框：反馈完成状态
+    await client.im.message.createByCard({
+        params: {
+          receive_id_type: "chat_id"
+        },
+        data: {
+          receive_id: open_chat_id,
+          template_id: 'ctp_AAI1pp9Okj2I',
+          template_variable: template_variable
+        }
+    });
+    mentionIds.clear();
+    completeIds.clear();
+
+  }else{
+    console.log('未完成人数：', mentionIds.size - completeIds.size);
+  }
 }
 
 /**
@@ -122,123 +237,17 @@ async function robotSendMessage(chat_id) {
 }
 
 /**
- * 响应卡片点击消息
- * @param {Object} data lark发送的数据
- * @returns 
- */
-export async function handleCardCallback(data) {
-  console.log('\n接收到用户点击事件:');
-  console.log(JSON.stringify(data));
-
-  const { 
-    operator: {
-      open_id
-    },
-    context: {
-      open_chat_id,
-      open_message_id
-    },
-    action: {
-      value: { 
-        redirectUrlTxt 
-      }
-    }
-  } = data;
-
-  /***        消息去重        ***/ 
-  const key = open_chat_id + open_message_id + open_id;
-  if (messageIds.has(key))  return { code: 0 };
-  messageIds.add(key);
-  /***        消息去重        ***/ 
-
-  // 需要写回去的新变量值
-  let openId = String(open_id);
-
-  console.log('\n读取缓存数组:');
-  console.log(mentionIds);
-
-  if(mentionIds.get(openId)){
-    const user = mentionIds.get(openId);
-    completeIds.set(user.id, user);
-    openId = user.name;
-
-  }else{
-    console.log('没有查找到用户信息');
-    return { code: 0 };
-  }
-
-  console.log('\nuser_name:' + openId);
-  const timeStr = dayjs().format('YYYY-MM-DD HH:mm');
-  console.log(timeStr);
-
-  const params = {
-     users: openId,    
-     timeStr: timeStr,  
-     redirectUrl: redirectUrlTxt,
-     redirectUrlTxt: redirectUrlTxt
-  };
-  console.log('\n生成新的弹框组装的参数:', params);
-
-  // 生成新的弹框：显示已经完成的信息
-  await client.im.message.createByCard({
-      params: {
-        receive_id_type: "chat_id"
-      },
-      data: {
-        receive_id: open_chat_id,
-        template_id: 'ctp_AAIV1SKqwXnP',
-        template_variable: params
-      }
-  });
-
-  if(mentionIds.size > 0 && completeIds.size == mentionIds.size){
-    console.log('所有人已完成');
-
-    const men_id = 'ou_b38d19b1aa686c6a976e8886283dd285';
-    const template_variable = {
-      timeStr: timeStr,  
-      mentionUser: `<at id="${men_id}"></at>`
-    };
-
-    // 生成新的弹框：反馈完成状态
-    await client.im.message.createByCard({
-        params: {
-          receive_id_type: "chat_id"
-        },
-        data: {
-          receive_id: open_chat_id,
-          template_id: 'ctp_AAI1pp9Okj2I',
-          template_variable: template_variable
-        }
-    });
-    mentionIds.clear();
-    completeIds.clear();
-
-  }else{
-    console.log('未完成人数：', mentionIds.size - completeIds.size);
-  }
-}
-
-/**
  * 给lark发送文本消息
- * @param {string} chat_id lark标识
- * @param {string} text    lark标识 
+ * @param {string} body 发送的内容
  * @returns 
  */
-export async function sendTextMessage(chat_id, text) {
+export async function sendTextMessage(body) {
   if (!TENANT_TOKEN.value) TENANT_TOKEN.value = await refreshToken();
-  console.log('token信息：', TENANT_TOKEN.value);
 
-  const payload = {
-    receive_id: chat_id,
-    msg_type: 'text',
-    content: JSON.stringify({ text }),
-  };
-
-  let result = await doSend(payload);
+  let result = await doSend(body);
   if (result.code === 99991663) {
     TENANT_TOKEN.value = await refreshToken();
-    result = await doSend(payload);
+    result = await doSend(body);
   }
 
   return result;
@@ -246,15 +255,44 @@ export async function sendTextMessage(chat_id, text) {
 
 async function doSend(payload) {
   try {
+    console.log('发送的数据');
+    console.log(payload);
     const res = await axios.post(API, payload, {
       headers: {
         Authorization: `Bearer ${TENANT_TOKEN.value}`,
         'Content-Type': 'application/json'
       }
     });
+
+    console.log('返回的结果:');
+    console.log(res.data);
+
+    try{
+        const mentions = JSON.stringify(res.data.data.mentions);
+        if(mentions){
+            console.log('mentions id:', mentions);
+            saveMentions(JSON.parse(mentions));
+        }
+      }catch(err){
+          console.log(JSON.stringify(err));
+          return res.data;
+      } 
+
     return res.data;
   } catch (err) {
     console.error('发送失败:', err.message);
     return { code: -1, msg: err.message };
   }
+}
+
+
+function saveMentions(users) {
+   users.forEach(user => {
+        if (!mentionIds.get(user.id)){
+            console.log(`ID: ${user.id}, Name: ${user.name}`);
+            mentionIds.set(user.id, user);
+        } 
+    });
+    console.log('数组信息:');
+    console.log(mentionIds);
 }
