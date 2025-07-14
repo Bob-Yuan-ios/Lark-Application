@@ -7,5 +7,11 @@
 # 忽略config目录文件
 src/config
 
-# 忽略config目录文件
+# 忽略test目录文件
 src/test
+
+# 忽略部署脚本
+script
+
+# 忽略自动配置
+ecosystem.config.js
