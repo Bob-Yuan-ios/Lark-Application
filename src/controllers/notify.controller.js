@@ -9,7 +9,10 @@ export async function handleNotify(req, res) {
             return res.status(400).json({code: -1, msg: 'no command'});
         }
 
-        const result = await dispatcher.dispatch(command, req.body);
+        const body = req.body;
+        delete body.command;
+        
+        const result = await dispatcher.dispatch(command, body);
         res.json(result);
     } catch(err) {
         console.log('处理异常:', err);
