@@ -1,0 +1,19 @@
+{
+  "name": "lark-application",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "start": "node server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "bob",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.16.0",
+    "dayjs": "^1.11.13",
+    "express": "^5.1.0",
+    "ioredis": "^5.6.1"
+  }
+}
