@@ -9,21 +9,13 @@ export function initProcessWithMentions(users, key = '', doneId = '') {
 
     doneTaskOpenIds.set(key, doneId);
 
-    let innerMap;
-    if(mentionIds.get(key)){
-        innerMap = mentionIds.get(key);
-    }else{
-        innerMap = new Map();
-    }
-
-   users.forEach(user => {
-        if (!innerMap.get(user.id)){
-            console.log(`ID: ${user.id}, Name: ${user.name}`);
-            innerMap.set(user.id, user);
-        } 
+    const innerMap = new Map();
+    users.forEach(user => {
+        console.log(`ID: ${user.id}, Name: ${user.name}`);
+        innerMap.set(user.id, user);
     });
-
     mentionIds.set(key, innerMap);
+
     console.log('初始化消息ID:', key);
     console.log(mentionIds);
 }
@@ -51,7 +43,7 @@ export function processDoneTask(openId, key = ''){
         }else{
             innerCompleteMap = new Map();
         }
-        innerCompleteMap.set(user.id, user);
+        innerCompleteMap.set(openId, user);
         completeIds.set(key, innerCompleteMap);
 
         return user.name;
