@@ -1,30 +1,55 @@
+ 
 const mentionIds = new Map();
+
 const completeIds = new Map();
 
 
-export function initProcessWithMentions(users) {
+export function initProcessWithMentions(users, key = '') {
+
+    let innerMap;
+    if(mentionIds.get(key)){
+        innerMap = mentionIds.get(key);
+    }else{
+        innerMap = new Map();
+    }
 
    users.forEach(user => {
-        if (!mentionIds.get(user.id)){
+        if (!innerMap.get(user.id)){
             console.log(`ID: ${user.id}, Name: ${user.name}`);
-            mentionIds.set(user.id, user);
+            innerMap.set(user.id, user);
         } 
     });
-    console.log('初始化任务数组:');
+
+    mentionIds.set(key, innerMap);
+    console.log('初始化消息ID:', key);
     console.log(mentionIds);
 }
 
-export function processDoneTask(openId){
+export function processDoneTask(openId, key = ''){
 
-    console.log('\n读取缓存数组:');
+    console.log('\n缓存消息ID:', key);
     console.log(mentionIds);
+
     if(mentionIds === undefined || mentionIds  == null){
         return '';
     }
 
-    if(mentionIds.get(openId)){
-        const user = mentionIds.get(openId);
-        completeIds.set(user.id, user);
+    const innerMap = mentionIds.get(key);
+    if(innerMap === undefined || innerMap  == null){
+        return '';
+    }
+
+    if(innerMap.get(openId)){
+        const user = innerMap.get(openId);
+
+        let innerCompleteMap;
+        if(completeIds.get(key)){
+            innerCompleteMap = completeIds.get(key);
+        }else{
+            innerCompleteMap = new Map();
+        }
+        innerCompleteMap.set(user.id, user);
+        completeIds.set(key, innerCompleteMap);
 
         return user.name;
     }else{
@@ -34,9 +59,16 @@ export function processDoneTask(openId){
     }
 }
 
-export function isCompleteTask(){
+export function isCompleteTask(key = ''){
 
+    console.log('完成消息ID:', key);
     if(mentionIds === undefined || mentionIds  == null || mentionIds.size === 0){
+        console.log('没有初始化信息');
+        return false;
+    }
+
+    const innerMap = mentionIds.get(key);
+    if(innerMap === undefined || innerMap  == null){
         console.log('没有初始化信息');
         return false;
     }
@@ -46,10 +78,19 @@ export function isCompleteTask(){
         return false;
     }
 
-    if(mentionIds.size - completeIds.size === 0){
+
+    const innerCompleteMap = completeIds.get(key);
+    if(innerCompleteMap === undefined || innerCompleteMap  == null){
+        console.log('没有完成信息');
+        return false;
+    }
+
+
+    const resCount = innerMap.size - innerCompleteMap.size;
+    if(innerMap.size > 0 && (resCount === 0)){
         console.log('所有人已完成');
-        mentionIds.clear();
-        completeIds.clear();
+        mentionIds.delete(key);
+        completeIds.delete(key);
         return true;
     }
 

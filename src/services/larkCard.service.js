@@ -43,8 +43,7 @@ async function handCardAsync(data) {
     if(dedupCard(cardKey)) return;
 
    // 需要写回去的新变量值
-
-    let users = processDoneTask(String(open_id));
+    let users = processDoneTask(String(open_id), open_message_id);
     if (users === '') {
         return { code: 0 };
     }
@@ -67,7 +66,7 @@ async function handCardAsync(data) {
       };
   await sendCardMessage(body);
 
-  if(isCompleteTask && doneTaskOpenId.trim() !== ''){
+  if(isCompleteTask(open_message_id) && doneTaskOpenId.trim() !== ''){
         const template_variable = {
             timeStr: timeStr,  
             titleTxt: titleTxt,
@@ -128,8 +127,10 @@ export async function robotSendCardMessage(payload) {
 
     if (res.code === 0) {
         console.log('✅ 卡片消息发送成功:', res.data);
+        console.log('消息ID:', res.data.message_id);
+
         if (res.data.mentions) {
-            initProcessWithMentions(res.data.mentions);
+            initProcessWithMentions(res.data.mentions, res.data.message_id);
         }
     }
 
