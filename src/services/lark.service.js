@@ -1,8 +1,8 @@
 import { handleEventCallback } from "./larkEvent.service.js";
-import { handleCardCallback, robotSendCardMessage } from "./larkCard.service.js";
+import { handleCardCallback, sendCardMessage } from "./larkCard.service.js";
 
 export {
   handleEventCallback,
-  robotSendCardMessage,
+  sendCardMessage,
   handleCardCallback
 };

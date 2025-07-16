@@ -15,8 +15,6 @@ import {
 
 import dayjs from 'dayjs';
 
-let doneTaskOpenId = '';
-
 export async function handleCardCallback(data) {
   if (data.type === 'url_verification') return { challenge: data.challenge };
 
@@ -66,7 +64,8 @@ async function handCardAsync(data) {
       };
   await sendCardMessage(body);
 
-  if(isCompleteTask(open_message_id) && doneTaskOpenId.trim() !== ''){
+  const doneTaskOpenId = isCompleteTask(open_message_id);
+  if( doneTaskOpenId.trim() !== ''){
         const template_variable = {
             timeStr: timeStr,  
             titleTxt: titleTxt,
@@ -87,10 +86,16 @@ async function handCardAsync(data) {
  * @param {*} payload 
  * @returns 
  */
-async function sendCardMessage(payload) {
+export async function sendCardMessage(payload, cached = false) {
 
-    console.log('发送卡片消息');
+    console.log('发送卡片消息:', payload);
     console.log(payload);
+
+    let doneTaskOpenId;
+    if(cached){
+        doneTaskOpenId = payload.doneUser;
+        delete payload.doneUser;
+    }
 
     const res = await client.im.message.createByCard({
         params: {
@@ -101,39 +106,11 @@ async function sendCardMessage(payload) {
 
     if (res.code === 0) {
         console.log('✅ 卡片消息发送成功:', res.data);
-    }
 
-    return {code: 0};
-}
-
-/**
- * 机器人发送卡片消息
- * @param {string} payload 发送的内容
- * @returns 
- */
-export async function robotSendCardMessage(payload) {
-
-    if(payload.doneUser){
-        doneTaskOpenId = payload.doneUser;
-        delete payload.doneUser;
-    }
-
-    const res = await client.im.message.create({
-        params: {
-            receive_id_type: 'chat_id'
-        },
-        data: payload
-    });
-
-    if (res.code === 0) {
-        console.log('✅ 卡片消息发送成功:', res.data);
-        console.log('消息ID:', res.data.message_id);
-
-        if (res.data.mentions) {
-            initProcessWithMentions(res.data.mentions, res.data.message_id);
+         if (cached && res.data.mentions) {
+            initProcessWithMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
         }
     }
 
     return {code: 0};
 }
- 

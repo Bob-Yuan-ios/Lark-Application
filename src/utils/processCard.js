@@ -3,8 +3,11 @@ const mentionIds = new Map();
 
 const completeIds = new Map();
 
+const doneTaskOpenIds = new Map();
 
-export function initProcessWithMentions(users, key = '') {
+export function initProcessWithMentions(users, key = '', doneId = '') {
+
+    doneTaskOpenIds.set(key, doneId);
 
     let innerMap;
     if(mentionIds.get(key)){
@@ -62,38 +65,46 @@ export function processDoneTask(openId, key = ''){
 export function isCompleteTask(key = ''){
 
     console.log('完成消息ID:', key);
+
+    const doneTaskId = doneTaskOpenIds.get(key);
+    if(doneTaskId === undefined || doneTaskId  == null){
+        console.log('没有初始化信息');
+        return '';
+    }
+
     if(mentionIds === undefined || mentionIds  == null || mentionIds.size === 0){
         console.log('没有初始化信息');
-        return false;
+        return '';
     }
 
     const innerMap = mentionIds.get(key);
     if(innerMap === undefined || innerMap  == null){
         console.log('没有初始化信息');
-        return false;
+        return '';
     }
 
     if(completeIds === undefined || completeIds  == null || completeIds.size === 0){
          console.log('没有完成信息');
-        return false;
+        return '';
     }
 
 
     const innerCompleteMap = completeIds.get(key);
     if(innerCompleteMap === undefined || innerCompleteMap  == null){
         console.log('没有完成信息');
-        return false;
+        return '';
     }
 
 
     const resCount = innerMap.size - innerCompleteMap.size;
     if(innerMap.size > 0 && (resCount === 0)){
         console.log('所有人已完成');
+        doneTaskOpenIds.delete(key);
         mentionIds.delete(key);
         completeIds.delete(key);
-        return true;
+        return doneTaskId;
     }
 
     console.log('未完成人数:', resCount);
-    return false;
+    return '';
 }
