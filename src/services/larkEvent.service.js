@@ -1,5 +1,11 @@
-import { client, Templates } from "../utils/larkClient.js";
-import { dedupEvent } from "../utils/dedup.js";
+import { 
+  dedupEvent
+} from "../utils/dedup.js";
+
+import { 
+  client, 
+  Templates
+} from "../utils/larkClient.js";
 
 export async function handleEventCallback(data) {
     if (data.type === 'url_verification') return { challenge: data.challenge };
@@ -8,21 +14,19 @@ export async function handleEventCallback(data) {
 }
 
 /**
- * 测试响应事件
+ * 异步响应事件
  * @param {string} data 
  * @returns 
  */
 async function handleEventAsync(data) {
     
-    const { event_id, retry_cnt, message, sender } = data;
+    const { event_id, retry_cnt } = data;
     if (retry_cnt > 0 || dedupEvent(event_id)) return;
 
-    const { chat_id, content } = message;
-    const msg = JSON.parse(content || '{}')?.text || '';
-    const open_id = sender?.sender_id?.open_id;
-
-    console.log(chat_id+msg+open_id);
-
+    // const { event_id, retry_cnt, message, sender } = data;
+    // const { chat_id, content } = message;
+    // const msg = JSON.parse(content || '{}')?.text || '';
+    // const open_id = sender?.sender_id?.open_id;  
     // if (msg.includes('文档更新通知')) {
     //   const redirectUrlTxt = 'https://docs.google.com/document/d/1vTr5gzR9SwkCUAZRXLNghyTlbpU4YR3VuftHrtH3cPY';
     //   await sendCard(chat_id, open_id, redirectUrlTxt);
@@ -31,7 +35,6 @@ async function handleEventAsync(data) {
     // }
 
 }
-
 
 async function sendCard(chat_id, open_id, redirectUrlTxt) {
   await client.im.message.createByCard({

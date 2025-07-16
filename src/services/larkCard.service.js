@@ -1,19 +1,20 @@
+import dayjs from 'dayjs';
+
 import { 
     dedupCard
 } from '../utils/dedup.js';
-
-import { 
-    initProcessWithMentions,
-    processDoneTask, 
-    isCompleteTask 
-} from '../utils/processCard.js';
 
 import { 
     client, 
     Templates
 } from '../utils/larkClient.js';
 
-import dayjs from 'dayjs';
+import { 
+    isCompleteTask,
+    processDoneTask, 
+    initProcessWithMentions
+} from '../utils/processCard.js';
+
 
 export async function handleCardCallback(data) {
   if (data.type === 'url_verification') return { challenge: data.challenge };
@@ -83,7 +84,8 @@ async function handCardAsync(data) {
 
 /**
  * 发送卡片消息
- * @param {*} payload 
+ * @param {JSON} payload 卡片内容
+ * @param {bool} cached  是否需要缓存mention用户列表
  * @returns 
  */
 export async function sendCardMessage(payload, cached = false) {

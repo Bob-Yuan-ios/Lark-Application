@@ -1,6 +1,3 @@
-/*
-处理apps script 等外部通知
-*/
 import handleDocupdate from "./docUpdate.handler.js";
 
 const commandMap = {
