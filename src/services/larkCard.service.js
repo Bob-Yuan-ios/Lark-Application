@@ -38,6 +38,7 @@ async function handCardAsync(data) {
         }
     } = data.event;
 
+    // 消息去重
     const cardKey = open_chat_id + open_message_id + open_id;
     if(dedupCard(cardKey)) return;
 
@@ -47,26 +48,26 @@ async function handCardAsync(data) {
         return { code: 0 };
     }
 
-  const timeStr = dayjs().format('YYYY-MM-DD HH:mm');
-  console.log(timeStr);
+    const timeStr = dayjs().format('YYYY-MM-DD HH:mm');
+    console.log(timeStr);
 
-  const params = {
-     users: users,    
-     timeStr: timeStr,  
-     titleTxt: titleTxt,
-     redirectUrl: redirectUrlTxt,
-     redirectUrlTxt: redirectUrlTxt
-  };
+    const params = {
+        users: users,    
+        timeStr: timeStr,  
+        titleTxt: titleTxt,
+        redirectUrl: redirectUrlTxt,
+        redirectUrlTxt: redirectUrlTxt
+    };
 
-  const body = {
+    const body = {
         receive_id: open_chat_id,
         template_id: Templates.process,
         template_variable: params
-      };
-  await sendCardMessage(body);
+        };
+    await sendCardMessage(body);
 
-  const doneTaskOpenId = isCompleteTask(open_message_id);
-  if( doneTaskOpenId.trim() !== ''){
+    const doneTaskOpenId = isCompleteTask(open_message_id);
+    if( doneTaskOpenId.trim() !== ''){
         const template_variable = {
             timeStr: timeStr,  
             titleTxt: titleTxt,
@@ -79,7 +80,7 @@ async function handCardAsync(data) {
             template_variable: template_variable
         };
         await sendCardMessage(body);
-  }
+    }
 }
 
 /**
@@ -109,7 +110,7 @@ export async function sendCardMessage(payload, cached = false) {
     if (res.code === 0) {
         console.log('✅ 卡片消息发送成功:', res.data);
 
-         if (cached && res.data.mentions) {
+        if (cached && res.data.mentions) {
             initProcessWithMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
         }
     }
