@@ -57,12 +57,12 @@ export function processDoneTask(openId, key = ''){
 export function isCompleteTask(key = ''){
 
     console.log('完成消息ID:', key);
-
     const doneTaskId = doneTaskOpenIds.get(key);
     if(doneTaskId === undefined || doneTaskId  == null){
         console.log('没有初始化信息');
         return '';
     }
+    console.log('完成人:', doneTaskId);
 
     if(mentionIds === undefined || mentionIds  == null || mentionIds.size === 0){
         console.log('没有初始化信息');

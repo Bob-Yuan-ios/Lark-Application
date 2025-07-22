@@ -65,6 +65,7 @@ async function handCardAsync(data) {
     await sendCardMessage(body);
 
     const doneTaskOpenId = isCompleteTask(open_message_id);
+    console.log('doneTaskOpenId.', doneTaskOpenId);
     if( doneTaskOpenId.trim() !== ''){
         const template_variable = {
             timeStr: timeStr,  
