@@ -51,7 +51,7 @@ async function sendCard(chat_id, open_id, redirectUrlTxt) {
   });
 }
 
-async function sendText(chat_id, text) {
+export async function sendText(chat_id, text) {
   await client.im.message.create({
     params: { receive_id_type: 'chat_id' },
     data: {
