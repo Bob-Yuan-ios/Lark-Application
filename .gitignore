@@ -1,17 +1,20 @@
-# 忽略所有.log文件
-*.log
+# 忽略所有log记录
+logs
  
+# 忽略所有log记录
+node_modules
+
+# 忽略test目录文件
+test
+
+# 忽略部署脚本
+script
+
 # 忽略所有.swp文件
 *.swp
 
 # 忽略config目录文件
 src/config
-
-# 忽略test目录文件
-src/test
-
-# 忽略部署脚本
-script
 
 # 忽略自动配置
 ecosystem.config.js

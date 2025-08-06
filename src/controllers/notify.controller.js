@@ -1,12 +1,13 @@
 
 import dispatcher from '../dispatchers/notify/index.js';
+import { AppError } from '../middlewares/errorHandler.js';
 
-export async function handleNotify(req, res) {
-
-    const { command } = req.body;    
+export async function handleNotify(req, res, next) {
     try {
+        const { command } = req.body;
+        
         if(!command) {
-            return res.status(400).json({code: -1, msg: 'no command'});
+            throw new AppError('没有提供命令', 400);
         }
 
         const body = req.body;
@@ -15,7 +16,6 @@ export async function handleNotify(req, res) {
         const result = await dispatcher.dispatch(command, body);
         res.json(result);
     } catch(err) {
-        console.log('处理异常:', err);
-        res.status(500).json({ code: -1, msg: '服务异常'});
+        next(err);
     }  
 }

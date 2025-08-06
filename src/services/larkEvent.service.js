@@ -21,7 +21,7 @@ export async function handleEventCallback(data) {
 async function handleEventAsync(data) {
     
     const { event_id, retry_cnt } = data;
-    if (retry_cnt > 0 || dedupEvent(event_id)) return;
+    if (retry_cnt > 0 || await dedupEvent(event_id)) return;
 
     // const { event_id, retry_cnt, message, sender } = data;
     // const { chat_id, content } = message;

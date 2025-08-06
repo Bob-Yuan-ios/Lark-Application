@@ -40,7 +40,7 @@ async function handCardAsync(data) {
 
     // 消息去重
     const cardKey = open_chat_id + open_message_id + open_id;
-    if(dedupCard(cardKey)) return;
+    if(await dedupCard(cardKey)) return;
 
    // 需要写回去的新变量值
     let users = processDoneTask(String(open_id), open_message_id);
