@@ -17,7 +17,7 @@ script
 src/config
 
 # 忽略env文件
-*.env
+.env
 
 # 忽略自动配置
 ecosystem.config.js
