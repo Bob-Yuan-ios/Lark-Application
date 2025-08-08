@@ -109,8 +109,12 @@ export async function sendCardMessage(payload, cached = false) {
     if (res.code === 0) {
         console.log('✅ 卡片消息发送成功:', res.data);
 
+        
         if (cached && res.data.mentions) {
+            console.log('缓存卡片消息');
             initProcessWithMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
+        }else{
+            console.log("没有缓存卡片消息");
         }
     }
 

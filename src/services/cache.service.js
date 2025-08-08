@@ -1,58 +1,37 @@
-import { redisClient } from '../utils/redisClient.js';
-import { logger } from '../middlewares/logger.js';
+// 简单的内存缓存实现
+const memoryCache = new Map();
 
-class CacheService {
-    constructor() {
-        // 获取Redis客户端
-        this.client = redisClient.getClient();
-    }
-
-    /**
-     * 获取缓存
-     * @param {string} key - 缓存键
-     * @returns {Promise<any>} 缓存值
-     */
-    async get(key) {
-        try {
-            const data = await this.client.get(key);
-            return data ? JSON.parse(data) : null;
-        } catch (err) {
-            logger.error(`Redis get error: ${err.message}`);
-            return null;
+export class CacheService {
+    static async get(key) {
+        const item = memoryCache.get(key);
+        if (item && item.expire > Date.now()) {
+            return item.value;
         }
+        // 清除过期项
+        if (item) {
+            memoryCache.delete(key);
+        }
+        return null;
     }
 
-    /**
-     * 设置缓存
-     * @param {string} key - 缓存键
-     * @param {any} value - 缓存值
-     * @param {number} expireTime - 过期时间（秒），默认3600秒
-     * @returns {Promise<boolean>} 是否设置成功
-     */
-    async set(key, value, expireTime = 3600) {
-        try {
-            await this.client.setex(key, expireTime, JSON.stringify(value));
+    static async set(key, value, expireTime) {
+        const expire = expireTime ? Date.now() + (expireTime * 1000) : null;
+        memoryCache.set(key, { value, expire });
+    }
+
+    static async del(key) {
+        memoryCache.delete(key);
+    }
+
+    static async exists(key) {
+        const item = memoryCache.get(key);
+        if (item && item.expire > Date.now()) {
             return true;
-        } catch (err) {
-            logger.error(`Redis set error: ${err.message}`);
-            return false;
         }
-    }
-
-    /**
-     * 删除缓存
-     * @param {string} key - 缓存键
-     * @returns {Promise<boolean>} 是否删除成功
-     */
-    async del(key) {
-        try {
-            await this.client.del(key);
-            return true;
-        } catch (err) {
-            logger.error(`Redis del error: ${err.message}`);
-            return false;
+        // 清除过期项
+        if (item) {
+            memoryCache.delete(key);
         }
+        return false;
     }
 }
-
-export default new CacheService();

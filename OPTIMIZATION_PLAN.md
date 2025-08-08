@@ -9,17 +9,90 @@
 - 应用重启后去重数据会丢失，可能导致重复处理
 
 ### 优化方案
-- 使用 Redis 存储去重标识，实现持久化去重
-- 为每个事件设置过期时间，避免 Redis 内存无限增长
+- 使用内存存储+本地持久化存储实现去重标识，实现持久化去重
+- 为每个事件设置过期时间，避免内存无限增长
+- 定期清理过期数据并保存到本地文件
 
 ### 实现代码
 ```javascript
 // src/utils/dedup.js
-import redis from 'ioredis';
+import fs from 'fs';
+import path from 'path';
 
-const client = new redis();
-const EVENT_EXPIRE_TIME = 3600; // 1小时过期
-const CARD_EXPIRE_TIME = 86400; // 24小时过期
+// 内存存储
+const memoryStore = new Map();
+
+// 本地持久化文件路径
+const persistFilePath = path.join(process.cwd(), 'data', 'dedup.json');
+
+// 确保存储目录存在
+const dataDir = path.dirname(persistFilePath);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// 从本地文件加载数据
+function loadFromFile() {
+  try {
+    if (fs.existsSync(persistFilePath)) {
+      const data = fs.readFileSync(persistFilePath, 'utf8');
+      const parsed = JSON.parse(data);
+      // 恢复到内存存储
+      for (const [key, value] of Object.entries(parsed)) {
+        memoryStore.set(key, new Date(value));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load dedup data from file:', err);
+  }
+}
+
+// 保存数据到本地文件
+function saveToFile() {
+  try {
+    const data = {};
+    for (const [key, value] of memoryStore.entries()) {
+      data[key] = value.toISOString();
+    }
+    fs.writeFileSync(persistFilePath, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error('Failed to save dedup data to file:', err);
+  }
+}
+
+// 清理过期数据
+function cleanupExpired() {
+  const now = new Date();
+  let cleaned = false;
+  
+  // 清理过期的事件数据（1小时过期）
+  for (const [key, timestamp] of memoryStore.entries()) {
+    if (key.startsWith('event:') && now - timestamp > 3600000) {
+      memoryStore.delete(key);
+      cleaned = true;
+    }
+  }
+  
+  // 清理过期的卡片数据（24小时过期）
+  for (const [key, timestamp] of memoryStore.entries()) {
+    if (key.startsWith('card:') && now - timestamp > 86400000) {
+      memoryStore.delete(key);
+      cleaned = true;
+    }
+  }
+  
+  // 如果清理了数据，则保存到文件
+  if (cleaned) {
+    saveToFile();
+  }
+}
+
+// 初始化时加载数据并清理过期数据
+loadFromFile();
+cleanupExpired();
+
+// 定期清理过期数据（每小时）
+setInterval(cleanupExpired, 3600000);
 
 /**
  * 响应事件防重复触发
@@ -27,11 +100,21 @@ const CARD_EXPIRE_TIME = 86400; // 24小时过期
  * @returns 
  */
 export async function dedupEvent(id) {
-    const key = `event:${id}`;
-    const exists = await client.exists(key);
-    if (exists) return true;
-    await client.setex(key, EVENT_EXPIRE_TIME, '1');
-    return false;
+  const key = `event:${id}`;
+  const now = new Date();
+  
+  // 检查是否存在且未过期
+  if (memoryStore.has(key)) {
+    const timestamp = memoryStore.get(key);
+    if (now - timestamp < 3600000) { // 1小时
+      return true;
+    }
+  }
+  
+  // 设置或更新时间戳
+  memoryStore.set(key, now);
+  saveToFile();
+  return false;
 }
 
 /**
@@ -40,11 +123,21 @@ export async function dedupEvent(id) {
  * @returns 
  */
 export async function dedupCard(id) {
-    const key = `card:${id}`;
-    const exists = await client.exists(key);
-    if (exists) return true;
-    await client.setex(key, CARD_EXPIRE_TIME, '1');
-    return false;
+  const key = `card:${id}`;
+  const now = new Date();
+  
+  // 检查是否存在且未过期
+  if (memoryStore.has(key)) {
+    const timestamp = memoryStore.get(key);
+    if (now - timestamp < 86400000) { // 24小时
+      return true;
+    }
+  }
+  
+  // 设置或更新时间戳
+  memoryStore.set(key, now);
+  saveToFile();
+  return false;
 }
 ```
 
@@ -166,63 +259,57 @@ const httpLogger = (req, res, next) => {
 export { logger, httpLogger };
 ```
 
-## 4. Redis 缓存利用
+## 4. 内存缓存利用
 
 ### 现状
 - 项目依赖了 `ioredis`，但没有实际使用
 - 部分数据（如用户信息、模板）可以缓存以提高性能
 
 ### 优化方案
-- 实现 Redis 缓存服务模块
+- 实现内存缓存服务模块
 - 缓存飞书 API 访问令牌和频繁访问的数据
 - 实现缓存过期和更新机制
 
 ### 实现代码
 ```javascript
 // src/services/cache.service.js
-import redis from 'ioredis';
-import { logger } from '../middlewares/logger.js';
+// 简单的内存缓存实现
+const memoryCache = new Map();
 
-class CacheService {
-    constructor() {
-        this.client = new redis();
-        this.client.on('error', (err) => {
-            logger.error(`Redis error: ${err.message}`);
-        });
-    }
-
-    async get(key) {
-        try {
-            const data = await this.client.get(key);
-            return data ? JSON.parse(data) : null;
-        } catch (err) {
-            logger.error(`Redis get error: ${err.message}`);
-            return null;
+export class CacheService {
+    static async get(key) {
+        const item = memoryCache.get(key);
+        if (item && item.expire > Date.now()) {
+            return item.value;
         }
+        // 清除过期项
+        if (item) {
+            memoryCache.delete(key);
+        }
+        return null;
     }
 
-    async set(key, value, expireTime = 3600) {
-        try {
-            await this.client.setex(key, expireTime, JSON.stringify(value));
+    static async set(key, value, expireTime) {
+        const expire = expireTime ? Date.now() + (expireTime * 1000) : null;
+        memoryCache.set(key, { value, expire });
+    }
+
+    static async del(key) {
+        memoryCache.delete(key);
+    }
+
+    static async exists(key) {
+        const item = memoryCache.get(key);
+        if (item && item.expire > Date.now()) {
             return true;
-        } catch (err) {
-            logger.error(`Redis set error: ${err.message}`);
-            return false;
         }
-    }
-
-    async del(key) {
-        try {
-            await this.client.del(key);
-            return true;
-        } catch (err) {
-            logger.error(`Redis del error: ${err.message}`);
-            return false;
+        // 清除过期项
+        if (item) {
+            memoryCache.delete(key);
         }
+        return false;
     }
 }
-
-export default new CacheService();
 ```
 
 ## 5. 环境变量配置
@@ -242,8 +329,6 @@ export default new CacheService();
 APP_ID=your_app_id
 APP_SECRET=your_app_secret
 PORT=3000
-REDIS_HOST=localhost
-REDIS_PORT=6379
 NODE_ENV=development
 ```
 
@@ -256,8 +341,6 @@ dotenv.config();
 export const APP_ID = process.env.APP_ID;
 export const APP_SECRET = process.env.APP_SECRET;
 export const PORT = process.env.PORT || 3000;
-export const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
-export const REDIS_PORT = process.env.REDIS_PORT || 6379;
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 ```
 

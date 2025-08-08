@@ -1,5 +1,4 @@
 import dispatcher from '../dispatchers/webhook/index.js';
-import { AppError } from '../middlewares/errorHandler.js';
 
 export async function handleWebhookEvent(req, res, next) {
     try {
