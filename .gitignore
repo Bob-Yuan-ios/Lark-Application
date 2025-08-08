@@ -21,3 +21,9 @@ src/config
 
 # 忽略自动配置
 ecosystem.config.js
+
+# 备份版本
+backups
+
+# 编译版本
+build
