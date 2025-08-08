@@ -69,12 +69,47 @@ function cleanupExpired() {
   }
 }
 
+// 检查文件大小并在超过限制时清理旧数据
+function checkFileSizeAndCleanup() {
+  try {
+    if (fs.existsSync(persistFilePath)) {
+      const stats = fs.statSync(persistFilePath);
+      const fileSizeInBytes = stats.size;
+      const fileSizeInMB = fileSizeInBytes / (1024 * 1024);
+      
+      // 如果文件超过10MB，则清理旧数据
+      if (fileSizeInMB > 10) {
+        console.log(`dedup.json 文件大小 ${fileSizeInMB.toFixed(2)}MB 超过限制，开始清理旧数据`);
+        
+        // 按时间戳排序，清理最旧的一半数据
+        const sortedEntries = Array.from(memoryStore.entries()).sort((a, b) => a[1] - b[1]);
+        const halfIndex = Math.floor(sortedEntries.length / 2);
+        
+        // 删除前一半（最旧的）
+        for (let i = 0; i < halfIndex; i++) {
+          memoryStore.delete(sortedEntries[i][0]);
+        }
+        
+        // 保存到文件
+        saveToFile();
+        console.log(`已清理 ${halfIndex} 条旧数据`);
+      }
+    }
+  } catch (err) {
+    console.error('检查文件大小时出错:', err);
+  }
+}
+
 // 初始化时加载数据并清理过期数据
 loadFromFile();
 cleanupExpired();
+// 检查文件大小
+checkFileSizeAndCleanup();
 
-// 定期清理过期数据（每小时）
-setInterval(cleanupExpired, 3600000);
+// 定期清理过期数据（每周）
+setInterval(cleanupExpired, 7 * 24 * 3600000);
+// 定期检查文件大小（每周）
+setInterval(checkFileSizeAndCleanup, 7 * 24 * 3600000);
 
 /**
  * 响应事件防重复触发
