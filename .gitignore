@@ -27,3 +27,6 @@ backups
 
 # 编译版本
 build
+
+# 去重数据
+data
