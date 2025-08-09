@@ -53,8 +53,6 @@ if ! command -v node &> /dev/null; then
   exit 1
 fi
 
-# ~ % node --version
-# v24.2.0
 echo "Node.js version: $(node --version)" >> "$LOG_DIR/deploy.log" 2>&1
 echo "npm version: $(npm --version)" >> "$LOG_DIR/deploy.log" 2>&1
 
@@ -67,9 +65,17 @@ if [ $? -ne 0 ]; then
 fi
 echo "npm packages installed successfully!"
 
+# 3. 本地编译是否正常、完成webpack打包
+echo "Step 3: Building project..."
+npm run build >> "$LOG_DIR/deploy.log" 2>&1
+if [ $? -ne 0 ]; then
+  echo "Build failed! Check logs in $LOG_DIR/deploy.log for details."
+  exit 1
+fi
+echo "Build succeeded!"
 
-# 3. 先确定有没有安装pm2，没有先安装
-echo "Step 3: Checking PM2..."
+# 4. 先确定有没有安装pm2，没有先安装
+echo "Step 4: Checking PM2..."
 if ! command -v pm2 &> /dev/null; then
   echo "PM2 is not installed. Installing PM2..."
   npm install -g pm2 >> "$LOG_DIR/deploy.log" 2>&1
@@ -82,8 +88,8 @@ else
   echo "PM2 is already installed."
 fi
 
-# 4. 确定有没有pm2.config.cjs启动脚本，没有编写一个pm2.config.cjs
-echo "Step 4: Checking pm2.config.cjs..."
+# 5. 确定有没有pm2.config.cjs启动脚本，没有编写一个pm2.config.cjs
+echo "Step 5: Checking pm2.config.cjs..."
 if [ ! -f "pm2.config.cjs" ]; then
   echo "Creating pm2.config.cjs..."
   cat > pm2.config.cjs << 'EOF'
@@ -110,8 +116,8 @@ else
   echo "pm2.config.cjs already exists."
 fi
 
-# 5. pm2启动
-echo "Step 5: Starting application with PM2..."
+# 6. pm2启动
+echo "Step 6: Starting application with PM2..."
 pm2 start pm2.config.cjs >> "$LOG_DIR/deploy.log" 2>&1
 if [ $? -ne 0 ]; then
   echo "Failed to start application with PM2! Check logs in $LOG_DIR/deploy.log for details."
@@ -119,8 +125,8 @@ if [ $? -ne 0 ]; then
 fi
 echo "Application started successfully with PM2!"
 
-# 6. 应用健康检查
-echo "Step 6: Performing health check..."
+# 7. 应用健康检查
+echo "Step 7: Performing health check..."
 sleep 5
 pm2 ping >> "$LOG_DIR/deploy.log" 2>&1
 if [ $? -ne 0 ]; then
