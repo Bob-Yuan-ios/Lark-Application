@@ -6,7 +6,7 @@
   "start": "node server.js",
   "scripts": {
     "dev": "node server.js",
-    "build": "webpack --config webpack.config.js",
+    "build": "webpack --config webpack.config.js --mode production",
     "build:watch": "webpack --config webpack.config.js --watch",
     "start": "node ./build/index.cjs",
     "test": "node test/dedup.test.js"
