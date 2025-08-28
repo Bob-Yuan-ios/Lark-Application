@@ -12,7 +12,8 @@ import {
 import { 
     isCompleteTask,
     processDoneTask, 
-    initProcessWithMentions
+    initProcessWithProdManMentions,
+    initProcessWithMaintainMentions
 } from '../utils/processCard.js';
 
 
@@ -29,6 +30,8 @@ export async function handleCardCallback(data) {
  * @returns 
  */
 async function handCardAsync(data) {
+
+    console.log('发送升级消息:', data);
 
     const {
         operator: { open_id },
@@ -61,7 +64,7 @@ async function handCardAsync(data) {
         receive_id: open_chat_id,
         template_id: Templates.process,
         template_variable: params
-        };
+    };
     await sendCardMessage(body);
 
     const doneTaskOpenId = isCompleteTask(open_message_id);
@@ -82,6 +85,43 @@ async function handCardAsync(data) {
     }
 }
 
+
+/**
+ * 发送 提示运维升级弹框
+ * @param {JSON} payload 
+ * @returns 
+ */
+export async function sendMaintainMessage(payload) {
+    console.log('发送升级消息:', payload);
+
+    // 所有产品，完成验收后，需要通知的成员
+    let prodMentionIds = payload.prodUser;
+    if(prodMentionIds != undefined && prodMentionIds != null){
+        delete payload.prodUser;
+    }
+
+    // 需要通知的产品
+    const res = await client.im.message.createByCard({
+        params: {
+            receive_id_type: 'chat_id'
+        },
+        data: payload
+    });
+
+    if (res.code === 0) {
+        console.log('✅ 升级消息发送成功:', res.data);
+
+        if (cached && res.data.mentions) {
+            console.log('找到缓存升级消息');
+            initProcessWithMaintainMentions(res.data.mentions, res.data.message_id, prodMentionIds);
+        }else{
+            console.log("没有缓存的升级消息");
+        }
+    }
+
+    return {code: 0};
+}
+
 /**
  * 发送卡片消息
  * @param {JSON} payload 卡片内容
@@ -91,7 +131,6 @@ async function handCardAsync(data) {
 export async function sendCardMessage(payload, cached = false) {
 
     console.log('发送卡片消息:', payload);
-    console.log(payload);
 
     let doneTaskOpenId;
     if(cached){
@@ -99,6 +138,7 @@ export async function sendCardMessage(payload, cached = false) {
         delete payload.doneUser;
     }
 
+  
     const res = await client.im.message.createByCard({
         params: {
             receive_id_type: 'chat_id'
@@ -112,7 +152,7 @@ export async function sendCardMessage(payload, cached = false) {
         
         if (cached && res.data.mentions) {
             console.log('缓存卡片消息');
-            initProcessWithMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
+            initProcessWithProdManMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
         }else{
             console.log("没有缓存卡片消息");
         }

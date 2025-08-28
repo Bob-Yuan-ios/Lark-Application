@@ -1,11 +1,22 @@
- 
+// 验收人员列表
 const mentionIds = new Map();
 
+// 运维人员列表
+const maintainIds = new Map();
+
+// 已完成验收人员列表
 const completeIds = new Map();
 
+// 验收结束后通知的人员列表
 const doneTaskOpenIds = new Map();
 
-export function initProcessWithMentions(users, key = '', doneId = '') {
+/**
+ * 初始化 @ 产品人员
+ * @param {Array} users 
+ * @param {string} key 
+ * @param {string} doneId 
+ */
+export function initProcessWithProdManMentions(users, key = '', doneId = '') {
 
     doneTaskOpenIds.set(key, doneId);
 
@@ -20,6 +31,31 @@ export function initProcessWithMentions(users, key = '', doneId = '') {
     console.log(mentionIds);
 }
 
+
+/**
+ * 初始化 @ 运维人员
+ * @param {Array} users 
+ * @param {string} key 
+ */
+export function initProcessWithMaintainMentions(users, key = '', prodIds = '') {
+
+    const innerMap = new Map();
+    users.forEach(user => {
+        console.log(`ID: ${user.id}, Name: ${user.name}`);
+        innerMap.set(user.id, user);
+    });
+    maintainIds.set(key, innerMap);
+
+    console.log('初始化消息ID:', key);
+    console.log(maintainIds);
+}
+
+/**
+ * 查询完成消息人员的昵称；用于回显
+ * @param {string} openId 
+ * @param {string} key 
+ * @returns 
+ */
 export function processDoneTask(openId, key = ''){
 
     console.log('\n缓存消息ID:', key);
@@ -54,6 +90,11 @@ export function processDoneTask(openId, key = ''){
     }
 }
 
+/**
+ * 产品 -- 确认验收
+ * @param {string} key 
+ * @returns 
+ */
 export function isCompleteTask(key = ''){
 
     console.log('完成消息ID:', key);
