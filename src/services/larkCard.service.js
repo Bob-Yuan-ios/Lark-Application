@@ -10,10 +10,12 @@ import {
 } from '../utils/larkClient.js';
 
 import { 
+    initProcessWithProdMentions,
     isCompleteTask,
     processDoneTask, 
-    initProcessWithProdManMentions,
-    initProcessWithMaintainMentions
+    initProcessWithMaintainMentions,
+    processMaintainCompleteTask,
+    isCompleteMaintain
 } from '../utils/processCard.js';
 
 
@@ -31,13 +33,13 @@ export async function handleCardCallback(data) {
  */
 async function handCardAsync(data) {
 
-    console.log('发送升级消息:', data);
+    console.log('响应卡片点击:', data);
 
     const {
         operator: { open_id },
         context: { open_chat_id, open_message_id },
         action: {
-            value: { titleTxt, redirectUrlTxt }
+            value: { titleTxt, redirectUrlTxt, isMaintain }
         }
     } = data.event;
 
@@ -45,6 +47,41 @@ async function handCardAsync(data) {
     const cardKey = open_chat_id + open_message_id + open_id;
     if(await dedupCard(cardKey)) return;
 
+    console.log('isMaintain is:', isMaintain);
+    if(isMaintain){
+        // 处理的是运维弹框
+        let innerMap = processMaintainCompleteTask(String(open_id), open_message_id);   
+        console.log("innerMap 内容:", Array.from(innerMap.entries()));
+
+        let prodIds = innerMap.get("prodIds");
+        let doneId = innerMap.get("doneId");
+        let deadline = innerMap.get('deadline');
+        let updateContent = innerMap.get('updateContent');
+
+        const timeStr = dayjs().format('YYYY-MM-DD HH:mm');
+        const params = {
+            updateContent:  updateContent,
+            redirectUrl:    redirectUrlTxt ,
+            redirectUrlTxt: redirectUrlTxt,
+            titleTxt:       titleTxt,
+            deadline:       deadline,
+            mentionUser:    prodIds,
+        };
+
+        const body = {
+           doneUser:  doneId,
+            msg_type  : 'interactive',
+            receive_id: open_chat_id,
+            template_id: Templates.start,
+            template_variable: params
+        };
+        await sendCardMessage(body, true);
+        isCompleteMaintain(open_message_id);
+        return { code: 0 };
+    }
+
+
+    // 处理的是升级弹框
    // 需要写回去的新变量值
     let users = processDoneTask(String(open_id), open_message_id);
     if (users === '') {
@@ -94,13 +131,19 @@ async function handCardAsync(data) {
 export async function sendMaintainMessage(payload) {
     console.log('发送升级消息:', payload);
 
-    // 所有产品，完成验收后，需要通知的成员
-    let prodMentionIds = payload.prodUser;
-    if(prodMentionIds != undefined && prodMentionIds != null){
-        delete payload.prodUser;
-    }
+    
+    // 发过去也不会返回，需要保存 所有产品，完成验收后，需要通知的成员
+    let prodMentionIds = payload.mentionUser;
+    delete payload.mentionUser;
+        
+    let doneTaskOpenId = payload.doneUser;
+    delete payload.doneUser;
 
-    // 需要通知的产品
+    let deadline = payload.deadline;
+    let updateContent = payload.updateContent;
+    console.log('升级内容:', updateContent);
+
+    // 通知运维
     const res = await client.im.message.createByCard({
         params: {
             receive_id_type: 'chat_id'
@@ -110,13 +153,7 @@ export async function sendMaintainMessage(payload) {
 
     if (res.code === 0) {
         console.log('✅ 升级消息发送成功:', res.data);
-
-        if (cached && res.data.mentions) {
-            console.log('找到缓存升级消息');
-            initProcessWithMaintainMentions(res.data.mentions, res.data.message_id, prodMentionIds);
-        }else{
-            console.log("没有缓存的升级消息");
-        }
+        initProcessWithMaintainMentions(res.data.mentions[0]['id'], res.data.message_id, prodMentionIds, doneTaskOpenId, updateContent, deadline);
     }
 
     return {code: 0};
@@ -148,11 +185,9 @@ export async function sendCardMessage(payload, cached = false) {
 
     if (res.code === 0) {
         console.log('✅ 卡片消息发送成功:', res.data);
-
-        
         if (cached && res.data.mentions) {
             console.log('缓存卡片消息');
-            initProcessWithProdManMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
+            initProcessWithProdMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
         }else{
             console.log("没有缓存卡片消息");
         }

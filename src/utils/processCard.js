@@ -10,13 +10,71 @@ const completeIds = new Map();
 // 验收结束后通知的人员列表
 const doneTaskOpenIds = new Map();
 
+
 /**
- * 初始化 @ 产品人员
+ * 初始化 @ 运维人员
  * @param {Array} users 
  * @param {string} key 
- * @param {string} doneId 
  */
-export function initProcessWithProdManMentions(users, key = '', doneId = '') {
+export function initProcessWithMaintainMentions(user = '', key = '', prodIds = '', doneId = '', updateContent = '', deadline = '') {
+
+    let innerMap = new Map();
+    innerMap.set("prodIds", prodIds);
+    innerMap.set("doneId", doneId);
+    innerMap.set("doneId", doneId);
+    innerMap.set('updateContent', updateContent);
+    innerMap.set('deadline', deadline);
+
+    let outterMap = new Map();
+    outterMap.set(user, innerMap);
+    maintainIds.set(key, outterMap);
+
+    console.log('初始化运维消息ID:', key);
+    console.log(maintainIds);
+}
+
+/**
+ * 查询完成人员id
+ * @param {string} open_id 
+ * @param {string} key 
+ * @returns 
+ */
+export function processMaintainCompleteTask(open_id, key = ''){
+    console.log('\n查询缓存消息ID:', open_id, key);
+    if(maintainIds === undefined || maintainIds  == null){
+        console.log('\n没有缓存消息');
+        return new Map();
+    }
+    console.log(maintainIds);
+
+    let outterMap = maintainIds.get(key);
+    if(outterMap == undefined || outterMap == null){
+        console.log('outtermap is null');
+       return new Map();
+    }
+
+    let innnerMap = outterMap.get(open_id);
+    if(innnerMap == undefined || innnerMap == null){
+        console.log('innnerMap is null');
+        return new Map();
+    }
+
+    return innnerMap;
+}
+
+export function isCompleteMaintain(key = ''){
+    maintainIds.delete(key);
+    return '';
+}
+
+
+/**
+ * 初始化 @ 产品人员
+ * @param {users}  user 产品人员
+ * @param {string} key 
+ * @param {string} doneId 验收人员
+ */
+export function initProcessWithProdMentions(users, key = '', doneId = '') {
 
     doneTaskOpenIds.set(key, doneId);
 
@@ -27,27 +85,8 @@ export function initProcessWithProdManMentions(users, key = '', doneId = '') {
     });
     mentionIds.set(key, innerMap);
 
-    console.log('初始化消息ID:', key);
+    console.log('初始化产品消息ID:', key);
     console.log(mentionIds);
-}
-
-
-/**
- * 初始化 @ 运维人员
- * @param {Array} users 
- * @param {string} key 
- */
-export function initProcessWithMaintainMentions(users, key = '', prodIds = '') {
-
-    const innerMap = new Map();
-    users.forEach(user => {
-        console.log(`ID: ${user.id}, Name: ${user.name}`);
-        innerMap.set(user.id, user);
-    });
-    maintainIds.set(key, innerMap);
-
-    console.log('初始化消息ID:', key);
-    console.log(maintainIds);
 }
 
 /**

@@ -4,11 +4,13 @@ import {
 
 import { 
   handleCardCallback, 
-  sendCardMessage 
+  sendCardMessage,
+  sendMaintainMessage
 } from "./larkCard.service.js";
 
 export {
   handleEventCallback,
   sendCardMessage,
+  sendMaintainMessage,
   handleCardCallback
 };
