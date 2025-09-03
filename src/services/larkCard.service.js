@@ -56,11 +56,10 @@ async function handCardAsync(data) {
         let prodIds = innerMap.get("prodIds");
         let doneId = innerMap.get("doneId");
         let deadline = innerMap.get('deadline');
-        let updateContent = innerMap.get('updateContent');
 
         const timeStr = dayjs().format('YYYY-MM-DD HH:mm');
         const params = {
-            updateContent:  updateContent,
+            timeStr:        timeStr,  
             redirectUrl:    redirectUrlTxt ,
             redirectUrlTxt: redirectUrlTxt,
             titleTxt:       titleTxt,
@@ -72,11 +71,12 @@ async function handCardAsync(data) {
            doneUser:  doneId,
             msg_type  : 'interactive',
             receive_id: open_chat_id,
-            template_id: Templates.start,
+            template_id: Templates.maintain,
             template_variable: params
         };
         await sendCardMessage(body, true);
         isCompleteMaintain(open_message_id);
+
         return { code: 0 };
     }
 
@@ -140,8 +140,6 @@ export async function sendMaintainMessage(payload) {
     delete payload.doneUser;
 
     let deadline = payload.deadline;
-    let updateContent = payload.updateContent;
-    console.log('升级内容:', updateContent);
 
     // 通知运维
     const res = await client.im.message.createByCard({
@@ -153,7 +151,7 @@ export async function sendMaintainMessage(payload) {
 
     if (res.code === 0) {
         console.log('✅ 升级消息发送成功:', res.data);
-        initProcessWithMaintainMentions(res.data.mentions[0]['id'], res.data.message_id, prodMentionIds, doneTaskOpenId, updateContent, deadline);
+        initProcessWithMaintainMentions(res.data.mentions, res.data.message_id, prodMentionIds, doneTaskOpenId, deadline);
     }
 
     return {code: 0};

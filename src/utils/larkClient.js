@@ -15,6 +15,7 @@ export const client = new lark.Client({
 // lark卡片模版ID
 export const Templates = {
   start: 'ctp_AAIy5bdcJ3Rl',
+  maintain: 'ctp_AAzJjIoCQcvV',
   process: 'ctp_AAIV1SKqwXnP',
   done: 'ctp_AAI1pp9Okj2I'
 };

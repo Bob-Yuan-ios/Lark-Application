@@ -16,18 +16,21 @@ const doneTaskOpenIds = new Map();
  * @param {Array} users 
  * @param {string} key 
  */
-export function initProcessWithMaintainMentions(user = '', key = '', prodIds = '', doneId = '', updateContent = '', deadline = '') {
+export function initProcessWithMaintainMentions(users, key = '', prodIds = '', doneId = '', deadline = '') {
 
     let innerMap = new Map();
     innerMap.set("prodIds", prodIds);
     innerMap.set("doneId", doneId);
-    innerMap.set("doneId", doneId);
-    innerMap.set('updateContent', updateContent);
     innerMap.set('deadline', deadline);
 
-    let outterMap = new Map();
-    outterMap.set(user, innerMap);
-    maintainIds.set(key, outterMap);
+    let userMap = new Map();
+    users.forEach(user => {
+        console.log(`ID: ${user.id}, Name: ${user.name}`);
+        userMap.set(user.id, user);
+    });
+
+    innerMap.set('user', userMap);
+    maintainIds.set(key, innerMap);
 
     console.log('初始化运维消息ID:', key);
     console.log(maintainIds);
@@ -47,18 +50,37 @@ export function processMaintainCompleteTask(open_id, key = ''){
     }
     console.log(maintainIds);
 
-    let outterMap = maintainIds.get(key);
-    if(outterMap == undefined || outterMap == null){
-        console.log('outtermap is null');
+    // let outterMap = maintainIds.get(key);
+    // if(outterMap == undefined || outterMap == null){
+    //     console.log('outtermap is null');
+    //    return new Map();
+    // }
+
+    // let innnerMap = outterMap.get(open_id);
+    // if(innnerMap == undefined || innnerMap == null){
+    //     console.log('innnerMap is null');
+    //     return new Map();
+    // }
+
+   let innnerMap = maintainIds.get(key);
+    if(innnerMap == undefined || innnerMap == null){
+        console.log('innnerMap is null');
        return new Map();
     }
 
-    let innnerMap = outterMap.get(open_id);
-    if(innnerMap == undefined || innnerMap == null){
-        console.log('innnerMap is null');
+    let userMap = innnerMap.get('user');
+   if(userMap == undefined || userMap == null){
+        console.log('userMap is null');
+       return new Map();
+    }
+
+   let name = userMap.get(open_id);
+   if(name == undefined || name == null){
+        console.log('没有查询到相关运维人员信息');
         return new Map();
     }
 
+    innnerMap.delete('user');
     return innnerMap;
 }
 
@@ -70,7 +92,7 @@ export function isCompleteMaintain(key = ''){
 
 /**
  * 初始化 @ 产品人员
- * @param {users}  user 产品人员
+ * @param {users}  users 产品人员
  * @param {string} key 
  * @param {string} doneId 验收人员
  */
@@ -97,7 +119,7 @@ export function initProcessWithProdMentions(users, key = '', doneId = '') {
  */
 export function processDoneTask(openId, key = ''){
 
-    console.log('\n缓存消息ID:', key);
+    console.log('\n缓存完成消息ID:', key);
     console.log(mentionIds);
 
     if(mentionIds === undefined || mentionIds  == null){
