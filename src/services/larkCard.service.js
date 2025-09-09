@@ -53,6 +53,10 @@ async function handCardAsync(data) {
         let innerMap = processMaintainCompleteTask(String(open_id), open_message_id);   
         console.log("innerMap 内容:", Array.from(innerMap.entries()));
 
+        if (Array.from(innerMap.entries()).length === 0) {
+                return { code: 0 };
+
+        }
         let prodIds = innerMap.get("prodIds");
         let doneId = innerMap.get("doneId");
         let deadline = innerMap.get('deadline');
