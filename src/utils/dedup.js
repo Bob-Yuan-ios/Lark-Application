@@ -57,7 +57,7 @@ function cleanupExpired() {
   
   // 清理过期的卡片数据（24小时过期）
   for (const [key, timestamp] of memoryStore.entries()) {
-    if (key.startsWith('card:') && now - timestamp > 86400000) {
+    if (key.startsWith('card:') && now - timestamp > 86400000 * 7) {
       memoryStore.delete(key);
       cleaned = true;
     }
@@ -146,7 +146,7 @@ export async function dedupCard(id) {
   // 检查是否存在且未过期
   if (memoryStore.has(key)) {
     const timestamp = memoryStore.get(key);
-    if (now - timestamp < 86400000) { // 24小时
+    if (now - timestamp < 86400000 * 7) { // 24小时
       return true;
     }
   }
