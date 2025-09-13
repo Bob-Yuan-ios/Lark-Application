@@ -3,7 +3,7 @@ import dispatcher from '../dispatchers/notify/index.js';
 import { AppError } from '../middlewares/errorHandler.js';
 
 export async function handleNotify(req, res, next) {
-    try {
+    try {        
         const { command } = req.body;
         
         if(!command) {
