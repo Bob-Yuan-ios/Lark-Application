@@ -45,7 +45,8 @@ async function handCardAsync(data) {
         operator: { open_id },
         context: { open_chat_id, open_message_id },
         action: {
-            value: { titleTxt, redirectUrlTxt, isMaintain,updateContent, maintainUser }
+            //titleTxt, timeStr, mentionUser, deadline, open_message_id
+            value: { titleTxt, redirectUrlTxt, isMaintain, updateContent, maintainUser, timeStr, mentionUser, deadline }
         }
     } = data.event;
 
@@ -67,9 +68,9 @@ async function handCardAsync(data) {
         let doneId = innerMap.get("doneId");
         let deadline = innerMap.get('deadline');
 
-        const timeStr =  dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm [UTC+8]');
+        const timestamp =  dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm [UTC+8]');
         const params = {
-            timeStr:        timeStr,  
+            timeStr:        timestamp,  
             redirectUrl:    redirectUrlTxt ,
             redirectUrlTxt: redirectUrlTxt,
             titleTxt:       titleTxt,
@@ -87,7 +88,7 @@ async function handCardAsync(data) {
         await sendCardMessage(body, true);
         isCompleteMaintain(open_message_id);
 
-        await updateMaintainCard(titleTxt, updateContent, maintainUser, open_message_id);
+        await updateCompleteMaintainCard(titleTxt, updateContent, maintainUser, open_message_id);
         return { code: 0 };
     }
 
@@ -99,10 +100,10 @@ async function handCardAsync(data) {
         return { code: 0 };
     }
 
-    const timeStr = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm [UTC+8]');
+    const timestamp = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm [UTC+8]');
     const params = {
         users: users,    
-        timeStr: timeStr,  
+        timeStr: timestamp,  
         titleTxt: titleTxt,
         redirectUrl: redirectUrlTxt,
         redirectUrlTxt: redirectUrlTxt
@@ -130,6 +131,7 @@ async function handCardAsync(data) {
             template_variable: template_variable
         };
         await sendCardMessage(body);
+        await updateCompleteProdCard(titleTxt, timeStr, mentionUser, deadline, open_message_id);
     }
 }
 
@@ -169,7 +171,7 @@ export async function sendMaintainMessage(payload) {
 
 
 /**
- * 更新运维人员卡片， 按钮设置为不可点击
+ * 运维人员完成升级后：卡片按钮设置置灰
  * @param {string} titleTxt 
  * @param {string} updateContent 
  * @param {string} mentionUser 
@@ -177,9 +179,9 @@ export async function sendMaintainMessage(payload) {
  * @param {string} open_message_id 
  * @returns 
  */
-async function updateMaintainCard(titleTxt, updateContent, maintainUser, open_message_id) {
+async function updateCompleteMaintainCard(titleTxt, updateContent, maintainUser, open_message_id) {
 
-    const updatedCard = {
+    const update_card = {
         "config": {
             "update_multi" : true,
             "wide_screen_mode" : true
@@ -238,7 +240,7 @@ async function updateMaintainCard(titleTxt, updateContent, maintainUser, open_me
 
     await client.im.message.patch({
         path: { message_id: open_message_id }, 
-        data: { content: JSON.stringify(updatedCard) }
+        data: { content: JSON.stringify(update_card) }
     });
 
     return {code: 0};
@@ -280,3 +282,96 @@ export async function sendCardMessage(payload, cached = false) {
 
     return {code: 0};
 }
+
+/**
+ * 产品全部完成验收后：卡片按钮设置置灰
+ * @param {string} titleTxt 
+ * @param {string} timeStr 
+ * @param {string} mentionUser 
+ * @param {string} deadline 
+ * @param {string} open_message_id 
+ * @returns 
+ */
+export async function updateCompleteProdCard(titleTxt, timeStr, mentionUser, deadline, open_message_id) {
+    
+    const update_card =  {
+        "config": {
+            "update_multi": true,
+            "wide_screen_mode": true
+        },
+        "header": {
+            "template": "blue",
+            "title": {
+            "content": `📢 ${titleTxt}`,
+            "tag": "plain_text"
+            }
+        },
+        "elements": [
+            {
+                "tag": "div",
+                "text": {
+                    "content": `已于 ${timeStr}   完成升级。请以下人员完成验收：`,
+                    "tag": "lark_md"
+                }
+            },
+            {
+                "tag": "hr"
+            },
+            {
+                "tag": "div",
+                "text": {
+                    "content": `${mentionUser}`,
+                    "tag": "lark_md"
+                }
+            },
+            {
+                "tag": "hr"
+            },
+            {
+                "tag": "div",
+                "text": {
+                    "content": "**验收截止时间**",
+                    "tag": "lark_md"
+                }
+            },
+            {
+                "tag": "div",
+                "text": {
+                    "content": `${deadline}`,
+                    "tag": "plain_text"
+                }
+            },
+            {
+                "tag": "hr"
+            },
+            {
+                "tag": "action",
+                "actions": [
+                    {
+                        "tag": "button",
+                        "text": {
+                            "tag": "plain_text",
+                            "content": "已完成验收"
+                        },
+                        "type": "default",
+                        "multi_url": {
+                            "url": "",
+                            "pc_url": "",
+                            "android_url": "",
+                            "ios_url": ""
+                        }
+                    }
+                ]
+            }
+        ]
+    };
+
+    await client.im.message.patch({
+        path: { message_id: open_message_id }, 
+        data: { content: JSON.stringify(update_card) }
+    });
+
+
+    return {code: 0};
+}
+
