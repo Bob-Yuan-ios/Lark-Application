@@ -1,9 +1,7 @@
 import handleDocupdate from "./docUpdate.handler.js";
-import handleExcelUpdate from "./excelUpdate.handler.js";
 
 const commandMap = {
     word_update: handleDocupdate,
-    excel_update: handleExcelUpdate
 };
 
 export default {

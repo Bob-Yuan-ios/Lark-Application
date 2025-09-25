@@ -23,17 +23,6 @@ async function handleEventAsync(data) {
     const { event_id, retry_cnt } = data;
     if (retry_cnt > 0 || await dedupEvent(event_id)) return;
 
-    // const { event_id, retry_cnt, message, sender } = data;
-    // const { chat_id, content } = message;
-    // const msg = JSON.parse(content || '{}')?.text || '';
-    // const open_id = sender?.sender_id?.open_id;  
-    // if (msg.includes('文档更新通知')) {
-    //   const redirectUrlTxt = 'https://docs.google.com/document/d/1vTr5gzR9SwkCUAZRXLNghyTlbpU4YR3VuftHrtH3cPY';
-    //   await sendCard(chat_id, open_id, redirectUrlTxt);
-    // } else {
-    //   await sendText(chat_id, msg);
-    // }
-
 }
 
 async function sendCard(chat_id, open_id, redirectUrlTxt) {
@@ -49,6 +38,7 @@ async function sendCard(chat_id, open_id, redirectUrlTxt) {
       }
     }
   });
+  return { code: 0 };
 }
 
 export async function sendText(chat_id, text) {
@@ -60,4 +50,5 @@ export async function sendText(chat_id, text) {
       content: JSON.stringify({ text })
     }
   });
+   return { code: 0 };
 }

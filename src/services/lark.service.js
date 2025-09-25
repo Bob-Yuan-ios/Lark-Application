@@ -1,5 +1,6 @@
 import { 
-  handleEventCallback 
+  handleEventCallback,
+  sendText
 } from "./larkEvent.service.js";
 
 import { 
@@ -12,5 +13,6 @@ export {
   handleEventCallback,
   sendCardMessage,
   sendMaintainMessage,
-  handleCardCallback
+  handleCardCallback,
+  sendText
 };

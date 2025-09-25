@@ -68,6 +68,23 @@ async function handCardAsync(data) {
         let doneId = innerMap.get("doneId");
         let deadline = innerMap.get('deadline');
 
+        // 按行切分
+        const lines = updateContent.split(/\r?\n/);
+        // 要查找的目标行
+        const target = "升级时间";
+        // 找到目标行的下标
+        const idx = lines.findIndex(line => line.includes(target));
+        // 截取目标行之前的内容
+        let result = "";
+        if (idx !== -1) {
+            result = lines.slice(0, idx);
+            // 去掉末尾连续空行（空字符串或只含空白字符）
+            while (result.length > 0 && result[result.length - 1].trim() === "") {
+                result.pop();
+            }
+            result = result.join("\n");
+        }
+
         const timestamp =  dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm [UTC+8]');
         const params = {
             timeStr:        timestamp,  
@@ -76,13 +93,14 @@ async function handCardAsync(data) {
             titleTxt:       titleTxt,
             deadline:       deadline,
             mentionUser:    prodIds,
+            updateContent:  result
         };
 
         const body = {
-           doneUser:  doneId,
+            doneUser:  doneId,
             msg_type  : 'interactive',
             receive_id: open_chat_id,
-            template_id: Templates.maintain,
+            template_id: Templates.maintain_content,
             template_variable: params
         };
         await sendCardMessage(body, true);
@@ -94,7 +112,7 @@ async function handCardAsync(data) {
 
 
     // 处理的是升级弹框
-   // 需要写回去的新变量值
+    // 需要写回去的新变量值
     let users = processDoneTask(String(open_id), open_message_id);
     if (users === '') {
         return { code: 0 };
@@ -106,7 +124,7 @@ async function handCardAsync(data) {
         timeStr: timestamp,  
         titleTxt: titleTxt,
         redirectUrl: redirectUrlTxt,
-        redirectUrlTxt: redirectUrlTxt
+        redirectUrlTxt: redirectUrlTxt,
     };
 
     const body = {
@@ -131,7 +149,7 @@ async function handCardAsync(data) {
             template_variable: template_variable
         };
         await sendCardMessage(body);
-        await updateCompleteProdCard(titleTxt, timeStr, mentionUser, deadline, open_message_id);
+        await updateCompleteProdCard(titleTxt, updateContent, timeStr, mentionUser, deadline, open_message_id);
     }
 }
 
@@ -286,13 +304,14 @@ export async function sendCardMessage(payload, cached = false) {
 /**
  * 产品全部完成验收后：卡片按钮设置置灰
  * @param {string} titleTxt 
+ * @param {string} updateContent 
  * @param {string} timeStr 
  * @param {string} mentionUser 
  * @param {string} deadline 
  * @param {string} open_message_id 
  * @returns 
  */
-export async function updateCompleteProdCard(titleTxt, timeStr, mentionUser, deadline, open_message_id) {
+export async function updateCompleteProdCard(titleTxt, updateContent, timeStr, mentionUser, deadline, open_message_id) {
     
     const update_card =  {
         "config": {
@@ -307,62 +326,72 @@ export async function updateCompleteProdCard(titleTxt, timeStr, mentionUser, dea
             }
         },
         "elements": [
-            {
+           {
                 "tag": "div",
                 "text": {
-                    "content": `已于 ${timeStr}   完成升级。请以下人员完成验收：`,
+                    "content": `${updateContent}`,
                     "tag": "lark_md"
                 }
-            },
-            {
-                "tag": "hr"
-            },
-            {
-                "tag": "div",
-                "text": {
-                    "content": `${mentionUser}`,
-                    "tag": "lark_md"
-                }
-            },
-            {
-                "tag": "hr"
-            },
-            {
-                "tag": "div",
-                "text": {
-                    "content": "**验收截止时间**",
-                    "tag": "lark_md"
-                }
-            },
-            {
-                "tag": "div",
-                "text": {
-                    "content": `${deadline}`,
-                    "tag": "plain_text"
-                }
-            },
-            {
-                "tag": "hr"
-            },
-            {
-                "tag": "action",
-                "actions": [
-                    {
-                        "tag": "button",
-                        "text": {
-                            "tag": "plain_text",
-                            "content": "已完成验收"
-                        },
-                        "type": "default",
-                        "multi_url": {
-                            "url": "",
-                            "pc_url": "",
-                            "android_url": "",
-                            "ios_url": ""
-                        }
+                },
+                {
+                  "tag": "hr"
+                },
+                {
+                    "tag": "div",
+                    "text": {
+                        "content": `已于 ${timeStr}   完成升级。请以下人员完成验收：`,
+                        "tag": "lark_md"
                     }
-                ]
-            }
+                },
+                {
+                   "tag": "hr"
+                },
+                {
+                    "tag": "div",
+                    "text": {
+                        "content": `${mentionUser}`,
+                        "tag": "lark_md"
+                    }
+                },
+                {
+                  "tag": "hr"
+                },
+                    {
+                    "tag": "div",
+                    "text": {
+                        "content": "**验收截止时间**",
+                        "tag": "lark_md"
+                    }
+                },
+                {
+                    "tag": "div",
+                    "text": {
+                        "content": `${deadline}`,
+                        "tag": "plain_text"
+                    }
+                },
+                {
+                    "tag": "hr"
+                },
+                {
+                    "tag": "action",
+                    "actions": [
+                        {
+                            "tag": "button",
+                            "text": {
+                                "tag": "plain_text",
+                                "content": "已完成验收"
+                            },
+                            "type": "default",
+                            "multi_url": {
+                                "url": "",
+                                "pc_url": "",
+                                "android_url": "",
+                                "ios_url": ""
+                            }
+                        }
+                    ]
+                }
         ]
     };
 

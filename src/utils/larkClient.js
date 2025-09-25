@@ -16,6 +16,7 @@ export const client = new lark.Client({
 export const Templates = {
   start: 'ctp_AAIy5bdcJ3Rl',
   maintain: 'ctp_AAzJjIoCQcvV',
+  maintain_content: 'ctp_AA9WiWPx5t6e',
   process: 'ctp_AAIV1SKqwXnP',
   done: 'ctp_AAI1pp9Okj2I'
 };
