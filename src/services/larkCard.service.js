@@ -34,6 +34,16 @@ export async function handleCardCallback(data) {
 
 /**
  * 异步响应卡片点击事件
+ * 一、升级流程
+ * 升级弹框：
+ * 先更新运维完成升级
+ * 然后判断是否需要验收
+ * 不需要验收则弹框提示升级完成
+ * 二、 验收流程
+ * 验收弹框：
+ * 先更新特定产品完成验收
+ * 然后判断是否全部产品已完成验收
+ * 全部完成则弹框提示验收完成
  * @param {JSON} data 
  * @returns 
  */
@@ -45,7 +55,6 @@ async function handCardAsync(data) {
         operator: { open_id },
         context: { open_chat_id, open_message_id },
         action: {
-            //titleTxt, timeStr, mentionUser, deadline, open_message_id
             value: { titleTxt, redirectUrlTxt, isMaintain, updateContent, maintainUser, timeStr, mentionUser, deadline }
         }
     } = data.event;
@@ -54,36 +63,48 @@ async function handCardAsync(data) {
     const cardKey = open_chat_id + open_message_id + open_id;
     if(await dedupCard(cardKey)) return;
 
+
     console.log('isMaintain is:', isMaintain);
     if(isMaintain){
-        // 处理的是运维弹框
+        // 处理的是升级弹框
         let innerMap = processMaintainCompleteTask(String(open_id), open_message_id);   
-        console.log("innerMap 内容:", Array.from(innerMap.entries()));
 
         if (Array.from(innerMap.entries()).length === 0) {
             return { code: 0 };
         }
 
         let prodIds = innerMap.get("prodIds");
+        console.log('prd is:' , prodIds);
+        if (prodIds.trim() === "") {
+            // 没有填写验收人员：完成升级则完成发布流程
+            let doneTaskOpenId = innerMap.get("doneId");
+            if( doneTaskOpenId.trim() !== ''){
+                const template_variable = {
+                timeStr: timeStr,  
+                titleTxt: titleTxt,
+                mentionUser: `<at id="${doneTaskOpenId}"></at>`
+                };
+
+                const body = {
+                receive_id: open_chat_id,
+                template_id: Templates.done_without_prod,
+                template_variable: template_variable
+                };
+                await sendCardMessage(body);
+            }
+
+            isCompleteMaintain(open_message_id);
+            await updateCompleteMaintainCard(titleTxt, updateContent, maintainUser, open_message_id);
+            return { code: 0 };
+        }
+        
+        console.log('发送验收弹框');
         let doneId = innerMap.get("doneId");
         let deadline = innerMap.get('deadline');
 
-        // 按行切分
-        const lines = updateContent.split(/\r?\n/);
-        // 要查找的目标行
-        const target = "升级时间";
-        // 找到目标行的下标
-        const idx = lines.findIndex(line => line.includes(target));
-        // 截取目标行之前的内容
-        let result = "";
-        if (idx !== -1) {
-            result = lines.slice(0, idx);
-            // 去掉末尾连续空行（空字符串或只含空白字符）
-            while (result.length > 0 && result[result.length - 1].trim() === "") {
-                result.pop();
-            }
-            result = result.join("\n");
-        }
+        // 统一换行符，避免 \r\n 和 \n 不一致导致 split 失败
+        const normalized = updateContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        let result = normalized.split('**升级时间**')[0].trim(); 
 
         const timestamp =  dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm [UTC+8]');
         const params = {
@@ -111,7 +132,7 @@ async function handCardAsync(data) {
     }
 
 
-    // 处理的是升级弹框
+    // 处理的是验收弹框
     // 需要写回去的新变量值
     let users = processDoneTask(String(open_id), open_message_id);
     if (users === '') {
@@ -134,8 +155,9 @@ async function handCardAsync(data) {
     };
     await sendCardMessage(body);
 
+    // 检查全部完成验收
     const doneTaskOpenId = isCompleteTask(open_message_id);
-    console.log('doneTaskOpenId.', doneTaskOpenId);
+    console.log('doneTaskOpenId:', doneTaskOpenId);
     if( doneTaskOpenId.trim() !== ''){
         const template_variable = {
             timeStr: timeStr,  
@@ -294,7 +316,7 @@ export async function sendCardMessage(payload, cached = false) {
             console.log('缓存卡片消息');
             initProcessWithProdMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
         }else{
-            console.log("没有缓存卡片消息");
+            console.log("不需要缓存或没有要缓存的消息");
         }
     }
 

@@ -1,8 +1,9 @@
-// 验收人员列表
-const mentionIds = new Map();
 
 // 运维人员列表
 const maintainIds = new Map();
+
+// 验收人员列表
+const mentionIds = new Map();
 
 // 已完成验收人员列表
 const completeIds = new Map();
@@ -37,46 +38,44 @@ export function initProcessWithMaintainMentions(users, key = '', prodIds = '', d
 }
 
 /**
- * 查询完成人员id
+ * 响应运维人员点击“已完成升级”
  * @param {string} open_id 
  * @param {string} key 
  * @returns 
  */
 export function processMaintainCompleteTask(open_id, key = ''){
-    console.log('\n查询缓存消息ID:', open_id, key);
+
+    console.log('\n查询缓存运维信息ID:', open_id, key);
     if(maintainIds === undefined || maintainIds  == null){
-        console.log('\n没有缓存消息');
+        console.log('\n没有缓存运维人员');
         return new Map();
     }
     console.log(maintainIds);
 
-    // let outterMap = maintainIds.get(key);
-    // if(outterMap == undefined || outterMap == null){
-    //     console.log('outtermap is null');
-    //    return new Map();
-    // }
-
-    // let innnerMap = outterMap.get(open_id);
-    // if(innnerMap == undefined || innnerMap == null){
-    //     console.log('innnerMap is null');
-    //     return new Map();
-    // }
-
    let innnerMap = maintainIds.get(key);
     if(innnerMap == undefined || innnerMap == null){
-        console.log('innnerMap is null');
+        console.log('没有查询到： 完成升级后，需要响应验收的人员信息');
        return new Map();
     }
 
-    let userMap = innnerMap.get('user');
+
+    // 如果是白名单用户； 则不验证
+    if(open_id === 'ou_d08be80a8b6b918f31dd393ed628c531'){
+        console.log('白名单用户，不做查询');
+        innnerMap.delete('user');
+        return innnerMap;
+    }
+
+    // 如果不是白名单用户； 则判断是否在用户列表
+   let userMap = innnerMap.get('user');
    if(userMap == undefined || userMap == null){
-        console.log('userMap is null');
+        console.log('用户列表信息异常');
        return new Map();
     }
 
    let name = userMap.get(open_id);
    if(name == undefined || name == null){
-        console.log('没有查询到相关运维人员信息');
+        console.log('用户非授权运维人员，结束响应');
         return new Map();
     }
 
@@ -84,6 +83,11 @@ export function processMaintainCompleteTask(open_id, key = ''){
     return innnerMap;
 }
 
+/**
+ * 响应升级弹框 删除缓存信息
+ * @param {string} key 消息id
+ * @returns 
+ */
 export function isCompleteMaintain(key = ''){
     maintainIds.delete(key);
     return '';
@@ -152,53 +156,52 @@ export function processDoneTask(openId, key = ''){
 }
 
 /**
- * 产品 -- 确认验收
+ * 产品 -- 检查是否已全部验收
  * @param {string} key 
- * @returns 
+ * @returns 完成验收后，需要通知的人员ID
  */
 export function isCompleteTask(key = ''){
 
-    console.log('完成消息ID:', key);
+    console.log('确认验收消息ID:', key);
     const doneTaskId = doneTaskOpenIds.get(key);
     if(doneTaskId === undefined || doneTaskId  == null){
-        console.log('没有初始化信息');
+        console.log('没有初始化完成人员信息');
         return '';
     }
     console.log('完成人:', doneTaskId);
 
     if(mentionIds === undefined || mentionIds  == null || mentionIds.size === 0){
-        console.log('没有初始化信息');
+        console.log('没有初始化验收人员信息');
         return '';
     }
 
     const innerMap = mentionIds.get(key);
     if(innerMap === undefined || innerMap  == null){
-        console.log('没有初始化信息');
+        console.log('没有初始化验收人员信息');
         return '';
     }
 
     if(completeIds === undefined || completeIds  == null || completeIds.size === 0){
-         console.log('没有完成信息');
+       console.log('没有初始化已完成人员信息');
         return '';
     }
 
 
     const innerCompleteMap = completeIds.get(key);
     if(innerCompleteMap === undefined || innerCompleteMap  == null){
-        console.log('没有完成信息');
+       console.log('没有已完成人员信息');
         return '';
     }
 
-
     const resCount = innerMap.size - innerCompleteMap.size;
     if(innerMap.size > 0 && (resCount === 0)){
-        console.log('所有人已完成');
+        console.log('所有人已完成验收');
         doneTaskOpenIds.delete(key);
         mentionIds.delete(key);
         completeIds.delete(key);
         return doneTaskId;
     }
 
-    console.log('未完成人数:', resCount);
+    console.log('未完成验收人数:', resCount);
     return '';
 }
