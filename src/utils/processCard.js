@@ -1,4 +1,3 @@
-
 // 运维人员列表
 const maintainIds = new Map();
 
@@ -58,15 +57,16 @@ export function processMaintainCompleteTask(open_id, key = ''){
        return new Map();
     }
 
-
-    // 如果是白名单用户； 则不验证
-    if(open_id === 'ou_d08be80a8b6b918f31dd393ed628c531'){
+   // 白名单用户,不验证身份
+   const opend_id_marina = process.env.OPEN_ID_MARINA || 'ou_b38d19b1aa686c6a976e8886283dd285';
+   const opend_id_bob = process.env.OPEN_ID_BOB || 'ou_fe19f72fdf3cb17914be9b409ab5acd4';
+    if(open_id === opend_id_marina || open_id === opend_id_bob){
         console.log('白名单用户，不做查询');
         innnerMap.delete('user');
         return innnerMap;
     }
 
-    // 如果不是白名单用户； 则判断是否在用户列表
+    // 非白名单用户,验证身份
    let userMap = innnerMap.get('user');
    if(userMap == undefined || userMap == null){
         console.log('用户列表信息异常');
@@ -92,7 +92,6 @@ export function isCompleteMaintain(key = ''){
     maintainIds.delete(key);
     return '';
 }
-
 
 /**
  * 初始化 @ 产品人员
@@ -154,6 +153,7 @@ export function processDoneTask(openId, key = ''){
         return '';
     }
 }
+
 
 /**
  * 产品 -- 检查是否已全部验收
