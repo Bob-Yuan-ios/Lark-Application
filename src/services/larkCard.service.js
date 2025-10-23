@@ -80,15 +80,15 @@ async function handCardAsync(data) {
             let doneTaskOpenId = innerMap.get("doneId");
             if( doneTaskOpenId.trim() !== ''){
                 const template_variable = {
-                timeStr: timeStr,  
-                titleTxt: titleTxt,
-                mentionUser: `<at id="${doneTaskOpenId}"></at>`
+                    timeStr: timeStr,  
+                    titleTxt: titleTxt,
+                    mentionUser: `<at id="${doneTaskOpenId}"></at>`
                 };
 
                 const body = {
-                receive_id: open_chat_id,
-                template_id: Templates.done_without_prod,
-                template_variable: template_variable
+                    receive_id: open_chat_id,
+                    template_id: Templates.done_without_prod,
+                    template_variable: template_variable
                 };
                 await sendCardMessage(body);
             }
