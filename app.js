@@ -7,7 +7,7 @@ import debugRouter from './src/routes/debug.route.js';
 import httpLogger from './src/middlewares/logger.js';
 import errorHandler from './src/middlewares/errorHandler.js';
 
-import checkChanges from './src/long-task/check-excel-update.js';
+import checkChanges from './src/services/excel-update.notify.js';
 
 const app = express();
 app.use(express.json());
