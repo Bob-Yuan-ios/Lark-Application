@@ -15,7 +15,7 @@ import {
  * 需要给api_key配置好访问权限
  * @returns excel内容转换为数组
  */
-async function fetchSheetValues() {
+async function fetchSheetValues(spreadsheetId, range) {
 
   // 使用gcloud ADC实现鉴权
   // const authOptions = {
@@ -35,24 +35,24 @@ async function fetchSheetValues() {
   });
 
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: process.env.SPREADSHEET_ID,
-    range: process.env.SHEET_RANGE,
+    spreadsheetId: spreadsheetId,
+    range: range,
   });
 
   return res.data.values || [];
 }
 
 // 加载快照
-function loadSnapshot() {
-  if (fs.existsSync("snapshot.json")) {
-    return JSON.parse(fs.readFileSync("snapshot.json", "utf-8"));
+function loadSnapshot(file_name) {
+  if (fs.existsSync(file_name)) {
+    return JSON.parse(fs.readFileSync(file_name, "utf-8"));
   }
   return [];
 }
 
 // 保存快照
-function saveSnapshot(data) {
-  fs.writeFileSync("snapshot.json", JSON.stringify(data, null, 2));
+function saveSnapshot(file_name, data) {
+  fs.writeFileSync(file_name, JSON.stringify(data, null, 2));
 }
 
 // 对比新旧数据差异
@@ -146,11 +146,17 @@ function formatChangesAsGroupedTable(changes) {
 // 主逻辑：检查改动
 export default async function checkChanges() {
   try {
-    const newData = await fetchSheetValues();
-    const oldData = loadSnapshot();
+
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const sheet_range = process.env.SHEET_RANGE;
+
+    const newData = await fetchSheetValues(spreadsheetId, sheet_range);
+
+    const file_name = spreadsheetId + sheet_range + ".json";
+    const oldData = loadSnapshot(file_name);
     if(oldData.length === 0) {
       console.log("✅ No saved data.");
-      saveSnapshot(newData);
+      saveSnapshot(file_name, newData);
       return [];
     }
     
@@ -158,15 +164,17 @@ export default async function checkChanges() {
        if (changes.length > 0) {
         console.log("🔄 Detected changes:");
         // console.table(changes);
-        console.log(changes);
+        // console.log(changes);
 
         // // 发送lark消息
         const result = formatChangesAsGroupedTable(changes);
-        sendLarkSheetCardMessage(result);
+      
+        const sheet_url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
+        await sendLarkSheetCardMessage(sheet_url, sheet_range, result);
       } else {
         console.log("✅ No changes detected.");
       }
-    saveSnapshot(newData);
+    saveSnapshot(file_name, newData);
     return changes;
 
   } catch (err) {
@@ -176,10 +184,13 @@ export default async function checkChanges() {
 }
 
 
-async function sendLarkSheetCardMessage(content) {
+async function sendLarkSheetCardMessage(sheet_url, sheet_range, content) {
   
-  // 模版变量
+  console.log('lark content:', content);
+    // 模版变量
     const template_variable = {
+      sheet_url: sheet_url,
+      sheet_range: sheet_range,
       content: content,  
     };
 
@@ -199,6 +210,8 @@ async function sendLarkSheetCardMessage(content) {
 
     if (res.code === 0) {
         console.log('✅ 卡片消息发送成功:', res.data);
+    }else{
+       console.log('✅ 卡片消息发送失败:', res.code);
     }
 
     return {code: 0};
