@@ -16,7 +16,6 @@ import {
  * @returns excel内容转换为数组
  */
 async function fetchSheetValues(spreadsheetId, range) {
-
   // 使用gcloud ADC实现鉴权
   // const authOptions = {
   //   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
@@ -83,16 +82,13 @@ function diffSheets(oldData, newData) {
 
 function formatChangesAsGroupedTable(changes) {
   if (!Array.isArray(changes) || changes.length === 0) {
-    return "✅ 未检测到有效变更。111111";
+    return "✅ 未检测到有效变更。";
   }
-
-  // const changesStr = changes.map(c => `行${c.row} 列${c.col} 改动前: ${c.old} 改动后: ${c.new}`).join("\n");
-
 
   // 按行号分组
   const grouped = {};
   for (const c of changes) {
-    if (c.row == null || c.col == null) continue; // 支持 number 或 string
+    if (c.row == null || c.col == null) continue;
     const rowKey = String(c.row);
     if (!grouped[rowKey]) grouped[rowKey] = [];
     grouped[rowKey].push(c);
@@ -125,64 +121,69 @@ function formatChangesAsGroupedTable(changes) {
         .join(";  ");
 
       return { row, changes: colChanges || "" };
-    });
+    })
+    .filter(r => r.changes); // 只保留有变化的行
 
-  if (!rows.some(r => r.changes)) {
-    return "✅ 未检测到有效变更。222222";
-  }
+  if (rows.length === 0) return "✅ 未检测到有效变更。";
 
   // 计算列宽
-  const rowWidth = Math.max(...rows.map((r) => r.row.length), "行号".length);
-  const changeWidth = Math.max(...rows.map((r) => r.changes.length), "变更内容".length);
+  const rowWidth = Math.max(...rows.map(r => (r.row ? r.row.length : 0)), "行号".length);
+  const changeWidth = Math.max(...rows.map(r => (r.changes ? r.changes.length : 0)), "变更内容".length);
 
-  const pad = (s, len) => s + " ".repeat(Math.max(0, len - s.length));
+  const pad = (s, len) => String(s).padEnd(len, " ");
+
+  // 构建表格
   const header = `${pad("行号", rowWidth)} | ${pad("变更内容", changeWidth)}`;
   const separator = `${"-".repeat(rowWidth)}-+-${"-".repeat(changeWidth)}`;
-  const body = rows.map((r) => `${pad(r.row, rowWidth)} | ${r.changes}`).join("\n");
+  const body = rows.map(r => `${pad(r.row, rowWidth)} | ${r.changes}`).join("\n");
 
-  return `${header}\n${separator}\n${body}\n\`\`\``;
+  // return `📊 **Google Sheet 内容变更**\n\`\`\`\n${header}\n${separator}\n${body}\n\`\`\``;
+    return `${header}\n${separator}\n${body}`;  
 }
 
 // 主逻辑：检查改动
-export default async function checkChanges() {
-  try {
-
-    const spreadsheetId = process.env.SPREADSHEET_ID;
-    const sheet_range = process.env.SHEET_RANGE;
-
-    const newData = await fetchSheetValues(spreadsheetId, sheet_range);
-
-    const file_name = spreadsheetId + sheet_range + ".json";
-    const oldData = loadSnapshot(file_name);
-    if(oldData.length === 0) {
-      console.log("✅ No saved data.");
-      saveSnapshot(file_name, newData);
-      return [];
-    }
-    
-     const changes = diffSheets(oldData, newData);
-       if (changes.length > 0) {
-        console.log("🔄 Detected changes:");
-        // console.table(changes);
-        // console.log(changes);
-
-        // // 发送lark消息
-        const result = formatChangesAsGroupedTable(changes);
-      
-        const sheet_url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
-        await sendLarkSheetCardMessage(sheet_url, sheet_range, result);
-      } else {
-        console.log("✅ No changes detected.");
-      }
-    saveSnapshot(file_name, newData);
-    return changes;
-
-  } catch (err) {
-    console.error("❌ Error checking sheet:", err.message);
-    return [];
-  }
+export default function checkChanges() {
+  const spreads = JSON.parse(process.env.SPREADS);
+  spreads.forEach(item => {
+      const spreadsheetId = item.SPREADSHEET_ID;
+      const sheet_range = item.SHEET_RANGE;
+      diffData(spreadsheetId, sheet_range);
+  });
 }
 
+
+async function diffData(spreadsheetId, sheet_range) {
+  try {
+        const newData = await fetchSheetValues(spreadsheetId, sheet_range);
+
+        const file_name = spreadsheetId + sheet_range + ".json";
+        const oldData = loadSnapshot(file_name);
+        if(oldData.length === 0) {
+          console.log("✅ No saved data.");
+          saveSnapshot(file_name, newData);
+          return [];
+        }
+        
+        const changes = diffSheets(oldData, newData);
+          if (changes.length > 0) {
+            console.log("🔄 Detected changes:");
+
+            // // 发送lark消息
+            const result = formatChangesAsGroupedTable(changes);
+          
+            const sheet_url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
+            await sendLarkSheetCardMessage(sheet_url, sheet_range, result);
+          } else {
+            console.log("✅ No changes detected.");
+          }
+        saveSnapshot(file_name, newData);
+        return changes;
+
+      } catch (err) {
+        console.error("❌ Error checking sheet:", err.message);
+        return [];
+      }
+}
 
 async function sendLarkSheetCardMessage(sheet_url, sheet_range, content) {
   
