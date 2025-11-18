@@ -12,19 +12,34 @@ import {
 } from '../utils/larkClient.js';
 
 import { 
+    diffMap,
+    findNotifyInfo,
+    bindMessgeId,
+    getParentMessageId,
+    deleteCompleteBindId,
+
     initProcessWithProdMentions,
     isCompleteTask,
     processDoneTask, 
+
     initProcessWithMaintainMentions,
     processMaintainCompleteTask,
     isCompleteMaintain
 } from '../utils/processCard.js';
 
+ import {
+    calMissDate
+ } from '../utils/dateUtil.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-
+/**
+ * 响应事件 
+ * 包括身份验证、其他权限消息
+ * @param {JSON} data 
+ * @returns 
+ */
 export async function handleCardCallback(data) {
   if (data.type === 'url_verification') return { challenge: data.challenge };
 
@@ -39,23 +54,26 @@ export async function handleCardCallback(data) {
  * 先更新运维完成升级
  * 然后判断是否需要验收
  * 不需要验收则弹框提示升级完成
- * 二、 验收流程
+ * 二、验收流程
  * 验收弹框：
  * 先更新特定产品完成验收
  * 然后判断是否全部产品已完成验收
  * 全部完成则弹框提示验收完成
+ * 三、分支流程
+ * 漏验收提醒弹框：
+ * 如果相关产品当天没有完成验收
+ * 次日9点提示产品完成验收
  * @param {JSON} data 
  * @returns 
  */
 async function handCardAsync(data) {
-
     console.log('响应卡片点击:', data);
 
     const {
         operator: { open_id },
         context: { open_chat_id, open_message_id },
         action: {
-            value: { titleTxt, redirectUrlTxt, isMaintain, updateContent, maintainUser, timeStr, mentionUser, deadline }
+            value: { titleTxt, redirectUrlTxt, isMaintain, updateContent, maintainUser, timeStr, mentionUser, deadline, isChildMessage }
         }
     } = data.event;
 
@@ -131,11 +149,20 @@ async function handCardAsync(data) {
         return { code: 0 };
     }
 
+    // 如果是漏提醒弹框
+    // 则先通过映射关系查找到mentionId对应的消息ID
+    console.log('isChildMessage is:', isChildMessage);
+    let message_id = open_message_id;
+    if(isChildMessage){
+        message_id = getParentMessageId(open_message_id);
+        console.log('parent_message_id is:', message_id);
+    }
 
-    // 处理的是验收弹框
+    // 处理的是验收弹框、漏验收弹框
     // 需要写回去的新变量值
-    let users = processDoneTask(String(open_id), open_message_id);
+    let users = processDoneTask(String(open_id), message_id);
     if (users === '') {
+        console.log('没有用户信息');
         return { code: 0 };
     }
 
@@ -156,13 +183,13 @@ async function handCardAsync(data) {
     await sendCardMessage(body);
 
     // 检查全部完成验收
-    const doneTaskOpenId = isCompleteTask(open_message_id);
-    console.log('doneTaskOpenId:', doneTaskOpenId);
-    if( doneTaskOpenId.trim() !== ''){
+    const doneTaskOpenIds = isCompleteTask(message_id);
+    console.log('doneTaskOpenId:', doneTaskOpenIds);
+    if(doneTaskOpenIds.trim() !== ''){
         const template_variable = {
             timeStr: timeStr,  
             titleTxt: titleTxt,
-            mentionUser: `<at id="${doneTaskOpenId}"></at>`
+            mentionUser: doneTaskOpenIds
         };
 
         const body = {
@@ -171,7 +198,14 @@ async function handCardAsync(data) {
             template_variable: template_variable
         };
         await sendCardMessage(body);
-        await updateCompleteProdCard(titleTxt, updateContent, timeStr, mentionUser, deadline, open_message_id);
+
+        // 非子消息弹框，更新文案
+        // 子消息弹框，  删除键值对
+        if(isChildMessage == undefined){
+            await updateCompleteProdCard(titleTxt, updateContent, timeStr, mentionUser, deadline, message_id);
+        }else{
+            deleteCompleteBindId(message_id);
+        }
     }
 }
 
@@ -220,7 +254,6 @@ export async function sendMaintainMessage(payload) {
  * @returns 
  */
 async function updateCompleteMaintainCard(titleTxt, updateContent, maintainUser, open_message_id) {
-
     const update_card = {
         "config": {
             "update_multi" : true,
@@ -277,7 +310,6 @@ async function updateCompleteMaintainCard(titleTxt, updateContent, maintainUser,
         ]
     };
 
-
     await client.im.message.patch({
         path: { message_id: open_message_id }, 
         data: { content: JSON.stringify(update_card) }
@@ -289,20 +321,25 @@ async function updateCompleteMaintainCard(titleTxt, updateContent, maintainUser,
 
 /**
  * 发送卡片消息
- * @param {JSON} payload 卡片内容
- * @param {bool} cached  是否需要缓存mention用户列表
+ * @param {JSON}   payload          卡片内容
+ * @param {bool}   cached           是否需要缓存mention用户列表
+ * @param {string} parent_messge_id 初始窗口ID
  * @returns 
  */
-export async function sendCardMessage(payload, cached = false) {
-
+export async function sendCardMessage(payload, cached = false, parent_messge_id) {
     console.log('发送卡片消息:', payload);
+    const receive_id = payload.receive_id;
+
+    const title = payload.template_variable.titleTxt;
+    const deadline = payload.template_variable.deadline;
+    const updateContent = payload.template_variable.updateContent;
 
     let doneTaskOpenId;
     if(cached){
         doneTaskOpenId = payload.doneUser;
         delete payload.doneUser;
     }
-  
+    
     const res = await client.im.message.createByCard({
         params: {
             receive_id_type: 'chat_id'
@@ -314,7 +351,10 @@ export async function sendCardMessage(payload, cached = false) {
         console.log('✅ 卡片消息发送成功:', res.data);
         if (cached && res.data.mentions) {
             console.log('缓存卡片消息');
-            initProcessWithProdMentions(res.data.mentions, res.data.message_id, doneTaskOpenId);
+            initProcessWithProdMentions(res.data.mentions, res.data.message_id, doneTaskOpenId, title, receive_id, deadline, updateContent);
+        }else if(parent_messge_id){
+            console.log('缓存绑定关系');
+            bindMessgeId(parent_messge_id, res.data.message_id);
         }else{
             console.log("不需要缓存或没有要缓存的消息");
         }
@@ -334,7 +374,6 @@ export async function sendCardMessage(payload, cached = false) {
  * @returns 
  */
 export async function updateCompleteProdCard(titleTxt, updateContent, timeStr, mentionUser, deadline, open_message_id) {
-    
     const update_card =  {
         "config": {
             "update_multi": true,
@@ -424,5 +463,43 @@ export async function updateCompleteProdCard(titleTxt, updateContent, timeStr, m
 
 
     return {code: 0};
+}
+
+
+/**
+ * 提醒未漏验收人员完成验收
+ * 遍历验收人员map，提取漏验收人员、待验收项目信息
+ * 发送卡片消息
+ */
+export function notifyProdCompleteTask() {
+    const diff = diffMap();
+    
+    diff.forEach(async (value, key) => {
+       console.log("notify ... key=", key);
+       console.log("notify ... value=", value);
+
+        const notifyInfo = findNotifyInfo(key);
+        let mentions = '';
+        value.forEach(mention => {
+            mentions += `<at id=${mention.id}></at>`;
+        });
+
+        const timeStr = calMissDate(notifyInfo.get('deadline'));
+        const template_variable = {
+            titleTxt: notifyInfo.get('title'),
+            updateContent: notifyInfo.get('updateContent'),
+            timeStr: timeStr,
+            deadline: notifyInfo.get('deadline'),
+            mentionUser: mentions
+        };
+
+        const body = {
+            receive_id: notifyInfo.get('receive_id'),
+            template_id: Templates.notice_miss_accept,
+            template_variable: template_variable
+        };
+
+        await sendCardMessage(body, false, key);
+    });
 }
 

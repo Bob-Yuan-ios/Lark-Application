@@ -1,4 +1,5 @@
 import { AppError } from '../middlewares/errorHandler.js';
+import fs from 'fs';
 
 /**
  * 调试API控制器
@@ -7,6 +8,8 @@ import { AppError } from '../middlewares/errorHandler.js';
 
 export async function getDebugInfo(req, res, next) {
     try {
+        const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
+
         // 获取系统信息
         const systemInfo = {
             nodeVersion: process.version,
@@ -16,6 +19,7 @@ export async function getDebugInfo(req, res, next) {
             env: {
                 nodeEnv: process.env.NODE_ENV,
                 // 只暴露安全的环境变量
+                version: pkg.version,
             }
         };
 

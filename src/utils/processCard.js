@@ -10,14 +10,60 @@ const completeIds = new Map();
 // 验收结束后通知的人员列表
 const doneTaskOpenIds = new Map();
 
+// 漏验收提醒信息列表
+const notifyInfos = new Map();
+
+// 关联ID
+const reflectKeys = new Map();
+
+// 绑定ID
+export function bindMessgeId(parent_messge_id, child_message_id){
+    reflectKeys.set(child_message_id, parent_messge_id);
+}
+
+// 获取父消息ID
+export function getParentMessageId(child_message_id){
+    return reflectKeys.get(child_message_id);
+}
+
+// 删除关联ID
+export function deleteCompleteBindId(parent_messge_id){
+ for (const [key, value] of reflectKeys) {
+    if (value === parent_messge_id) {
+      reflectKeys.delete(key);
+    }
+  }
+}
+
+
+/**
+ * 返回 Map 的差集：即 a 中有但 b 中没有的元素
+ * @returns {Map} - 差集 Map
+ */
+export function diffMap() {
+  if (!(mentionIds instanceof Map) || !(completeIds instanceof Map)) {
+    throw new TypeError('参数必须是 Map 类型');
+  }
+
+  return new Map([...mentionIds].filter(([key]) => !completeIds.has(key)));
+}
+
+/**
+ * 返回漏提醒信息： Map
+ * @param {string} key 消息id
+ * @returns {Map} 漏提醒信息 Map
+ */
+export function findNotifyInfo(key) {
+    const notify = notifyInfos.get(key);
+    return notify;
+}
 
 /**
  * 初始化 @ 运维人员
- * @param {Array} users 
- * @param {string} key 
+ * @param {Array}  users 可以点击升级的运维人员列表
+ * @param {string} key   消息id
  */
 export function initProcessWithMaintainMentions(users, key = '', prodIds = '', doneId = '', deadline = '') {
-
     let innerMap = new Map();
     innerMap.set("prodIds", prodIds);
     innerMap.set("doneId", doneId);
@@ -38,12 +84,12 @@ export function initProcessWithMaintainMentions(users, key = '', prodIds = '', d
 
 /**
  * 响应运维人员点击“已完成升级”
- * @param {string} open_id 
- * @param {string} key 
+ * 同时支持白名单人员点击“已完成升级”
+ * @param {string} open_id 运维人员的id
+ * @param {string} key     消息id
  * @returns 
  */
 export function processMaintainCompleteTask(open_id, key = ''){
-
     console.log('\n查询缓存运维信息ID:', open_id, key);
     if(maintainIds === undefined || maintainIds  == null){
         console.log('\n没有缓存运维人员');
@@ -53,7 +99,7 @@ export function processMaintainCompleteTask(open_id, key = ''){
 
    let innnerMap = maintainIds.get(key);
     if(innnerMap == undefined || innnerMap == null){
-        console.log('没有查询到： 完成升级后，需要响应验收的人员信息');
+        console.log('没有查询到:完成升级后，需要响应验收的人员信息');
        return new Map();
     }
 
@@ -69,7 +115,7 @@ export function processMaintainCompleteTask(open_id, key = ''){
     // 非白名单用户,验证身份
    let userMap = innnerMap.get('user');
    if(userMap == undefined || userMap == null){
-        console.log('用户列表信息异常');
+       console.log('用户列表信息异常');
        return new Map();
     }
 
@@ -95,47 +141,61 @@ export function isCompleteMaintain(key = ''){
 
 /**
  * 初始化 @ 产品人员
- * @param {users}  users 产品人员
- * @param {string} key 
- * @param {string} doneId 验收人员
- */
-export function initProcessWithProdMentions(users, key = '', doneId = '') {
+ * @param {users}  users         产品人员
+ * @param {string} key           关键标识
+ * @param {string} doneId        验收人员
+ * @param {string} titleTxt      通知标题
+ * @param {string} receive_id    消息群
+ * @param {string} deadline      验收截止时间
+ * @param {string} updateContent 升级内容
 
+ */
+export function initProcessWithProdMentions(users, key = '', doneId = '', titleTxt, receive_id, deadline, updateContent) {
     doneTaskOpenIds.set(key, doneId);
 
     const innerMap = new Map();
     users.forEach(user => {
         console.log(`ID: ${user.id}, Name: ${user.name}`);
+        
         innerMap.set(user.id, user);
     });
     mentionIds.set(key, innerMap);
-
     console.log('初始化产品消息ID:', key);
     console.log(mentionIds);
+
+    const outterMap = new Map();
+    outterMap.set('title', titleTxt);
+    outterMap.set('receive_id', receive_id);
+    outterMap.set('deadline', deadline);
+    outterMap.set('updateContent', updateContent);
+
+    notifyInfos.set(key, outterMap);
 }
 
 /**
  * 查询完成消息人员的昵称；用于回显
- * @param {string} openId 
- * @param {string} key 
+ * @param {string} openId   用户唯一标识
+ * @param {string} key      消息id
  * @returns 
  */
 export function processDoneTask(openId, key = ''){
-
     console.log('\n缓存完成消息ID:', key);
-    console.log(mentionIds);
 
     if(mentionIds === undefined || mentionIds  == null){
+        console.log('mentionIds 数据异常');
         return '';
     }
+    console.log(mentionIds);
 
     const innerMap = mentionIds.get(key);
     if(innerMap === undefined || innerMap  == null){
+        console.log('innerMap 数据异常');
         return '';
     }
 
     if(innerMap.get(openId)){
         const user = innerMap.get(openId);
+        const name = user.name;
 
         let innerCompleteMap;
         if(completeIds.get(key)){
@@ -158,10 +218,9 @@ export function processDoneTask(openId, key = ''){
 /**
  * 产品 -- 检查是否已全部验收
  * @param {string} key 
- * @returns 完成验收后，需要通知的人员ID
+ * @returns 完成验收后，需要通知的人员id
  */
 export function isCompleteTask(key = ''){
-
     console.log('确认验收消息ID:', key);
     const doneTaskId = doneTaskOpenIds.get(key);
     if(doneTaskId === undefined || doneTaskId  == null){
@@ -197,8 +256,11 @@ export function isCompleteTask(key = ''){
     if(innerMap.size > 0 && (resCount === 0)){
         console.log('所有人已完成验收');
         doneTaskOpenIds.delete(key);
+
         mentionIds.delete(key);
+        notifyInfos.delete(key);
         completeIds.delete(key);
+
         return doneTaskId;
     }
 

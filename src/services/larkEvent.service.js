@@ -10,7 +10,6 @@ import {
 export async function handleEventCallback(data) {
     console.log('handleEventCallback:', data);
 
-  
     if (data.type === 'url_verification') return { challenge: data.challenge };
     setImmediate(() => handleEventAsync(data));
     return { code: 0 };

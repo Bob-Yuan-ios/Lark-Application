@@ -186,8 +186,7 @@ async function diffData(spreadsheetId, sheet_range) {
 }
 
 async function sendLarkSheetCardMessage(sheet_url, sheet_range, content) {
-  
-  console.log('lark content:', content);
+    console.log('lark content:', content);
     // 模版变量
     const template_variable = {
       sheet_url: sheet_url,

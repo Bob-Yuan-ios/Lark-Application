@@ -1,6 +1,6 @@
 {
   "name": "lark-application",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "server.js",
   "start": "node server.js",
@@ -16,10 +16,12 @@
   "type": "module",
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.16.0",
+    "cron": "^4.3.4",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "googleapis": "^164.1.0",
+    "node-cron": "^4.2.1",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
