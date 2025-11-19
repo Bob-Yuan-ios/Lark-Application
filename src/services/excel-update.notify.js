@@ -7,6 +7,65 @@ import {
     Templates
 } from '../utils/larkClient.js';
 
+
+/**
+ * 检查文档改动内容改动
+ * 遍历excel 每个sheet，分别输出sheet改变的内容
+ */
+export function checkChanges() {
+  const file_name = 'src/utils/config-data.json';
+  if (fs.existsSync(file_name)) {
+    const spreads = JSON.parse(fs.readFileSync(file_name, "utf-8"));
+    spreads.SHEET_RANGE.forEach(item => {
+      const spreadsheetId = spreads.SPREADSHEET_ID;
+      diffData(spreadsheetId, item);
+    });
+  }
+}
+
+/**
+ * 具体的比对sheet
+ * 拉取最新数据，拉取本地缓存快照数据
+ * 如果本地没有缓存快照数据，则缓存快照数据，然后不提示
+ * 本地缓存快照和最新数据一致，日志输入没有检测到改版
+ * 本地缓存快照和最新数据不一致，汇总不一致的数据，发送lark卡片消息
+ * @param {string} spreadsheetId  execel id
+ * @param {string} sheet_range    excel sheet name
+ * @returns 
+ */
+async function diffData(spreadsheetId, sheet_range) {
+  try {
+        const newData = await fetchSheetValues(spreadsheetId, sheet_range);
+
+        const file_name = spreadsheetId + sheet_range + ".json";
+        const oldData = loadSnapshot(file_name);
+        if(oldData.length === 0) {
+          console.log("✅ No saved data.");
+          saveSnapshot(file_name, newData);
+          return [];
+        }
+        
+        const changes = diffSheets(oldData, newData);
+        if (changes.length > 0) {
+          console.log("🔄 Detected changes:");
+
+          const result = formatChangesAsGroupedTable(changes);
+        
+          const sheet_url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
+          await sendLarkSheetCardMessage(sheet_url, sheet_range, result);
+        } else {
+          console.log("✅ No changes detected.");
+        }
+        saveSnapshot(file_name, newData);
+        return changes;
+
+      } catch (err) {
+        console.error("❌ Error checking sheet:", err.message);
+        return [];
+      }
+}
+
+
 /**
  * 方式一：本地开发无需 JSON key，用 gcloud ADC
  * 文件路径：~/.config/gcloud/application_default_credentials.json
@@ -41,7 +100,11 @@ async function fetchSheetValues(spreadsheetId, range) {
   return res.data.values || [];
 }
 
-// 加载快照
+/**
+ * 读取本地缓存快照
+ * @param {string} file_name 快照名称
+ * @returns 
+ */
 function loadSnapshot(file_name) {
   if (fs.existsSync(file_name)) {
     return JSON.parse(fs.readFileSync(file_name, "utf-8"));
@@ -49,12 +112,21 @@ function loadSnapshot(file_name) {
   return [];
 }
 
-// 保存快照
+/**
+ * 保存最新快照
+ * @param {string} file_name 快照名称
+ * @param {json} data 快照内容
+ */
 function saveSnapshot(file_name, data) {
   fs.writeFileSync(file_name, JSON.stringify(data, null, 2));
 }
 
-// 对比新旧数据差异
+/**
+ * 对比表单数据
+ * @param {json} oldData 
+ * @param {json} newData 
+ * @returns 
+ */
 function diffSheets(oldData, newData) {
   const changes = [];
   const maxRows = Math.max(oldData.length, newData.length);
@@ -80,6 +152,11 @@ function diffSheets(oldData, newData) {
   return changes;
 }
 
+/**
+ * 表单格式化的方式输出改动内容
+ * @param {string} changes 改动内容
+ * @returns 
+ */
 function formatChangesAsGroupedTable(changes) {
   if (!Array.isArray(changes) || changes.length === 0) {
     return "✅ 未检测到有效变更。";
@@ -141,78 +218,41 @@ function formatChangesAsGroupedTable(changes) {
     return `${header}\n${separator}\n${body}`;  
 }
 
-// 主逻辑：检查改动
-export default function checkChanges() {
-  const spreads = JSON.parse(process.env.SPREADS);
-  spreads.forEach(item => {
-      const spreadsheetId = item.SPREADSHEET_ID;
-      const sheet_range = item.SHEET_RANGE;
-      diffData(spreadsheetId, sheet_range);
-  });
-}
-
-
-async function diffData(spreadsheetId, sheet_range) {
-  try {
-        const newData = await fetchSheetValues(spreadsheetId, sheet_range);
-
-        const file_name = spreadsheetId + sheet_range + ".json";
-        const oldData = loadSnapshot(file_name);
-        if(oldData.length === 0) {
-          console.log("✅ No saved data.");
-          saveSnapshot(file_name, newData);
-          return [];
-        }
-        
-        const changes = diffSheets(oldData, newData);
-          if (changes.length > 0) {
-            console.log("🔄 Detected changes:");
-
-            // // 发送lark消息
-            const result = formatChangesAsGroupedTable(changes);
-          
-            const sheet_url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
-            await sendLarkSheetCardMessage(sheet_url, sheet_range, result);
-          } else {
-            console.log("✅ No changes detected.");
-          }
-        saveSnapshot(file_name, newData);
-        return changes;
-
-      } catch (err) {
-        console.error("❌ Error checking sheet:", err.message);
-        return [];
-      }
-}
-
+/**
+ * 把改动内容发到到lark卡片消息
+ * @param {string} sheet_url      excel完整的url
+ * @param {string} sheet_range    具体有改动的sheet名
+ * @param {json} content          具体改动的内容
+ * @returns 
+ */
 async function sendLarkSheetCardMessage(sheet_url, sheet_range, content) {
-    console.log('lark content:', content);
-    // 模版变量
-    const template_variable = {
-      sheet_url: sheet_url,
-      sheet_range: sheet_range,
-      content: content,  
-    };
+  console.log('lark content:', content);
+  // 模版变量
+  const template_variable = {
+    sheet_url: sheet_url,
+    sheet_range: sheet_range,
+    content: content,  
+  };
 
-    //消息体参数
-    const body = {
-      receive_id: 'oc_7574fa5ed3641b0d3381a7a1afcdf643',
-      template_id: Templates.sheet_update,
-      template_variable: template_variable
-    };
+  //消息体参数
+  const body = {
+    receive_id: process.env.RECEIVE_ID,
+    template_id: Templates.sheet_update,
+    template_variable: template_variable
+  };
 
-    const res = await client.im.message.createByCard({
-      params: {
-        receive_id_type: 'chat_id'
-      },
-      data: body
-    });
+  const res = await client.im.message.createByCard({
+    params: {
+      receive_id_type: 'chat_id'
+    },
+    data: body
+  });
 
-    if (res.code === 0) {
-        console.log('✅ 卡片消息发送成功:', res.data);
-    }else{
-       console.log('✅ 卡片消息发送失败:', res.code);
-    }
+  if (res.code === 0) {
+      console.log('✅ 卡片消息发送成功:', res.data);
+  }else{
+      console.log('✅ 卡片消息发送失败:', res.code);
+  }
 
-    return {code: 0};
+  return {code: 0};
 }

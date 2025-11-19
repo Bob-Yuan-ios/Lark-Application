@@ -13,6 +13,10 @@ import {
   notifyProdCompleteTask
 } from './src/services/larkCard.service.js';
 
+import {
+   checkChanges
+} from './src/services/excel-update.notify.js';
+
 const app = express();
 app.use(express.json());
 app.use(httpLogger);
@@ -30,11 +34,15 @@ app.use(errorHandler);
 
 // 每天 9:00（Asia/Shanghai = UTC+8）分/时/日/月/年
 // 检查漏提醒验收
-cron.schedule('0 9 * * *', async () => {
-  console.log('执行任务：每天早上 9 点（UTC+8）');
-    notifyProdCompleteTask();
-}, {
-  timezone: "Asia/Shanghai"
-});
+// cron.schedule('0 9 * * *', async () => {
+//   console.log('执行任务：每天早上 9 点（UTC+8）');
+//     notifyProdCompleteTask();
+// }, {
+//   timezone: "Asia/Shanghai"
+// });
+
+// 检查文档更新
+checkChanges();
+
 
 export default app
