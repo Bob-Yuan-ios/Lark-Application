@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url"; 
 
 import { google } from "googleapis";
 import { GoogleAuth } from 'google-auth-library';
@@ -16,10 +15,8 @@ import {
  * 遍历excel 每个sheet，分别输出sheet改变的内容
  */
 export function checkChanges() {
-  const __dirname = path.dirname(new URL(import.meta.url).pathname);
-  const file_name = path.join(__dirname, "../utils/config-data.json");
-  console.log('file_name:', file_name);
-  const spreads = loadSnapshot(file_name);
+  const file_path = get_file_path("config-data.json");
+  const spreads = loadSnapshot(file_path);
   spreads.SHEET_RANGE.forEach(item => {
     const spreadsheetId = spreads.SPREADSHEET_ID;
     diffData(spreadsheetId, item);
@@ -41,10 +38,12 @@ async function diffData(spreadsheetId, sheet_range) {
         const newData = await fetchSheetValues(spreadsheetId, sheet_range);
 
         const file_name = spreadsheetId + sheet_range + ".json";
-        const oldData = loadSnapshot(file_name);
+        console.log('file_name is:', file_name);
+        const file_path = get_file_path(file_name);
+        const oldData = loadSnapshot(file_path);
         if(oldData.length === 0) {
           console.log("✅ No saved data.");
-          saveSnapshot(file_name, newData);
+          saveSnapshot(file_path, newData);
           return [];
         }
         
@@ -59,7 +58,7 @@ async function diffData(spreadsheetId, sheet_range) {
         } else {
           console.log("✅ No changes detected.");
         }
-        saveSnapshot(file_name, newData);
+        saveSnapshot(file_path, newData);
         return changes;
 
       } catch (err) {
@@ -67,7 +66,6 @@ async function diffData(spreadsheetId, sheet_range) {
         return [];
       }
 }
-
 
 /**
  * 方式一：本地开发无需 JSON key，用 gcloud ADC
@@ -103,6 +101,18 @@ async function fetchSheetValues(spreadsheetId, range) {
   return res.data.values || [];
 }
 
+
+/**
+ * 获取文件的绝对路径
+ * @param {string} file_name 文件名
+ * @returns 
+ */
+function get_file_path(file_name){
+  const __dirname = path.dirname(new URL(import.meta.url).pathname);
+  const file_path = path.join(__dirname, "../resource", file_name);
+  console.log('file_path is:', file_path);
+  return file_path;
+}
 
 /**
  * 保存最新快照
