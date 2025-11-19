@@ -1,4 +1,7 @@
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url"; 
+
 import { google } from "googleapis";
 import { GoogleAuth } from 'google-auth-library';
 
@@ -13,14 +16,14 @@ import {
  * 遍历excel 每个sheet，分别输出sheet改变的内容
  */
 export function checkChanges() {
-  const file_name = 'src/utils/config-data.json';
-  if (fs.existsSync(file_name)) {
-    const spreads = JSON.parse(fs.readFileSync(file_name, "utf-8"));
-    spreads.SHEET_RANGE.forEach(item => {
-      const spreadsheetId = spreads.SPREADSHEET_ID;
-      diffData(spreadsheetId, item);
-    });
-  }
+  const __dirname = path.dirname(new URL(import.meta.url).pathname);
+  const file_name = path.join(__dirname, "../utils/config-data.json");
+  console.log('file_name:', file_name);
+  const spreads = loadSnapshot(file_name);
+  spreads.SHEET_RANGE.forEach(item => {
+    const spreadsheetId = spreads.SPREADSHEET_ID;
+    diffData(spreadsheetId, item);
+  });
 }
 
 /**
@@ -100,17 +103,6 @@ async function fetchSheetValues(spreadsheetId, range) {
   return res.data.values || [];
 }
 
-/**
- * 读取本地缓存快照
- * @param {string} file_name 快照名称
- * @returns 
- */
-function loadSnapshot(file_name) {
-  if (fs.existsSync(file_name)) {
-    return JSON.parse(fs.readFileSync(file_name, "utf-8"));
-  }
-  return [];
-}
 
 /**
  * 保存最新快照
@@ -120,6 +112,29 @@ function loadSnapshot(file_name) {
 function saveSnapshot(file_name, data) {
   fs.writeFileSync(file_name, JSON.stringify(data, null, 2));
 }
+
+/**
+ * 读取本地缓存快照
+ * @param {string} file_name 快照名称
+ * @returns 
+ */
+function loadSnapshot(file_name) {
+
+  if (!fs.existsSync(file_name)) {
+    console.log('文件不存在，返回安全的默认值');
+    return {};
+  }
+
+  try {
+    const content = fs.readFileSync(file_name, "utf-8");
+    return JSON.parse(content);
+  } catch (err) {
+    console.error("Config load error:", err);
+    return {}; // 返回安全的默认值
+  }
+}
+
+
 
 /**
  * 对比表单数据
