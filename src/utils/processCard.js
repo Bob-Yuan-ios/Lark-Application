@@ -37,16 +37,40 @@ export function deleteCompleteBindId(parent_messge_id){
 
 
 /**
- * 返回 Map 的差集：即 a 中有但 b 中没有的元素
- * @returns {Map} - 差集 Map
+ * 找出 A 的 value Map 中 B 不存在的元素
+ * result: Map<key, Map<missingKey, missingValue>>
  */
 export function diffMap() {
-  if (!(mentionIds instanceof Map) || !(completeIds instanceof Map)) {
-    throw new TypeError('参数必须是 Map 类型');
-  }
+  const result = new Map();
 
-  return new Map([...mentionIds].filter(([key]) => !completeIds.has(key)));
+  mentionIds.forEach((valueA, keyA) => {
+    
+    if (!completeIds.has(keyA)) {
+      result.set(keyA, valueA);
+      return;
+    }
+
+    const valueB = completeIds.get(keyA);
+    const missingSubMap = new Map();
+
+    // 遍历 A[key] 的子 map
+    valueA.forEach((subValueA, subKeyA) => {
+      if (!valueB.has(subKeyA)) {
+        // B 的子 map 没有这个 key → 记录进 missingSubMap
+        missingSubMap.set(subKeyA, subValueA);
+      }
+    });
+
+    // 仅在存在差异时才设置到结果中
+    if (missingSubMap.size > 0) {
+      result.set(keyA, missingSubMap);
+    }
+  });
+
+  return result;
 }
+
+
 
 /**
  * 返回漏提醒信息： Map

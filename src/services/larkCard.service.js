@@ -353,7 +353,7 @@ export async function sendCardMessage(payload, cached = false, parent_messge_id)
             console.log('缓存卡片消息');
             initProcessWithProdMentions(res.data.mentions, res.data.message_id, doneTaskOpenId, title, receive_id, deadline, updateContent);
         }else if(parent_messge_id){
-            console.log('缓存绑定关系');
+            console.log('发送漏验收提醒，缓存消息弹框关联关系');
             bindMessgeId(parent_messge_id, res.data.message_id);
         }else{
             console.log("不需要缓存或没有要缓存的消息");
@@ -472,19 +472,23 @@ export async function updateCompleteProdCard(titleTxt, updateContent, timeStr, m
  * 发送卡片消息
  */
 export function notifyProdCompleteTask() {
-    const diff = diffMap();
-    
-    diff.forEach(async (value, key) => {
-       console.log("notify ... key=", key);
+    diffMap().forEach(async (value, key) => {
+        const notifyInfo = findNotifyInfo(key);
+        const timeStr = calMissDate(notifyInfo.get('deadline'));
+        if (typeof timeStr !== 'string') {
+           console.log('时间戳不满足要求', notifyInfo.get('deadline'));
+           return; // 直接跳过本次循环
+        }
+
        console.log("notify ... value=", value);
 
-        const notifyInfo = findNotifyInfo(key);
         let mentions = '';
+        // 未完成人员列表
         value.forEach(mention => {
             mentions += `<at id=${mention.id}></at>`;
         });
+       console.log("mentions=", mentions);
 
-        const timeStr = calMissDate(notifyInfo.get('deadline'));
         const template_variable = {
             titleTxt: notifyInfo.get('title'),
             updateContent: notifyInfo.get('updateContent'),

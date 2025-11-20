@@ -17,9 +17,9 @@ import {
 export function checkChanges() {
   const file_path = get_file_path("config-data.json");
   const spreads = loadSnapshot(file_path);
-  spreads.SHEET_RANGE.forEach(item => {
+  spreads.SHEET_RANGE.forEach(async item => {
     const spreadsheetId = spreads.SPREADSHEET_ID;
-    diffData(spreadsheetId, item);
+    await diffData(spreadsheetId, item);
   });
 }
 
@@ -247,7 +247,7 @@ function formatChangesAsGroupedTable(changes) {
  * 把改动内容发到到lark卡片消息
  * @param {string} sheet_url      excel完整的url
  * @param {string} sheet_range    具体有改动的sheet名
- * @param {json} content          具体改动的内容
+ * @param {json}   content        具体改动的内容
  * @returns 
  */
 async function sendLarkSheetCardMessage(sheet_url, sheet_range, content) {

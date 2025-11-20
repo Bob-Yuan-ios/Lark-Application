@@ -16,7 +16,9 @@ export function calMissDate(input) {
     const nowTs = Date.now();
 
     const diffDays = Math.floor((nowTs - targetTimestamp) / (24 * 3600 * 1000));
-
+    if(diffDays <= 0){
+        return -1;
+    }
     console.log(`过去天数: ${diffDays} 天`);
     return `${diffDays}`;
 }
