@@ -34,7 +34,7 @@ async function handleEventAsync(data) {
     const messageId = data?.event?.message?.parent_id;
     if (!messageId) {
       console.warn('No message_id found');
-      return res.sendStatus(200);
+      return { code: 0 };
     }
 
     console.log('message_id', messageId);

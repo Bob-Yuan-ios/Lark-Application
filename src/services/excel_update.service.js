@@ -119,7 +119,7 @@ function get_file_path(file_name){
  * @param {string} file_name 快照名称
  * @param {json} data 快照内容
  */
-function saveSnapshot(file_name, data) {
+ export function saveSnapshot(file_name, data) {
   fs.writeFileSync(file_name, JSON.stringify(data, null, 2));
 }
 

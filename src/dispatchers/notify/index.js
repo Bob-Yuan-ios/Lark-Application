@@ -1,7 +1,7 @@
 import handleDocupdate from "./docUpdate.handler.js";
 
 const commandMap = {
-    word_update: handleDocupdate,
+    word_update: handleDocupdate
 };
 
 export default {

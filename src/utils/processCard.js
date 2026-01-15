@@ -238,6 +238,30 @@ export function processDoneTask(openId, key = ''){
     }
 }
 
+/**
+ * 判断用户是否已完成验收
+ * @param {string} open_id 
+ * @param {string} meesage_id 
+ * @returns 
+ */
+export function has_complete_task(open_id, meesage_id){
+
+   if(completeIds.size == 0) {
+       console.log("没有人完成...");
+      return false;
+   }
+
+   if(completeIds.has(meesage_id)){
+      if(completeIds.get(meesage_id).has(open_id)){
+        console.log("已完成");
+        return true;
+      }
+      console.log("此验收有相关人员完成，但是验证人员未完成");
+   }
+
+   return false;
+}
+
 
 /**
  * 产品 -- 检查是否已全部验收

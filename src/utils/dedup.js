@@ -4,6 +4,9 @@ import path from 'path';
 // 内存存储
 const memoryStore = new Map();
 
+// 缓存有效期
+const expireTimeStamp = 14 * 24 * 3600000;
+
 // 本地持久化文件路径
 const persistFilePath = path.join(process.cwd(), 'data', 'dedup.json');
 
@@ -47,17 +50,17 @@ function cleanupExpired() {
   const now = new Date();
   let cleaned = false;
   
-  // 清理过期的事件数据（1小时过期）
+  // 清理过期的事件数据
   for (const [key, timestamp] of memoryStore.entries()) {
-    if (key.startsWith('event:') && now - timestamp > 3600000) {
+    if (key.startsWith('event:') && now - timestamp > expireTimeStamp) {
       memoryStore.delete(key);
       cleaned = true;
     }
   }
   
-  // 清理过期的卡片数据（24小时过期）
+  // 清理过期的卡片数据
   for (const [key, timestamp] of memoryStore.entries()) {
-    if (key.startsWith('card:') && now - timestamp > 86400000 * 7) {
+    if (key.startsWith('card:') && now - timestamp > expireTimeStamp) {
       memoryStore.delete(key);
       cleaned = true;
     }
@@ -107,30 +110,26 @@ cleanupExpired();
 checkFileSizeAndCleanup();
 
 // 定期清理过期数据（每周）
-setInterval(cleanupExpired, 7 * 24 * 3600000);
+setInterval(cleanupExpired, expireTimeStamp);
 // 定期检查文件大小（每周）
-setInterval(checkFileSizeAndCleanup, 7 * 24 * 3600000);
+setInterval(checkFileSizeAndCleanup, expireTimeStamp);
 
 /**
  * 响应事件防重复触发
  * @param {string} id 
  * @returns 
  */
-export async function dedupEvent(id) {
+export function dedupEvent(id) {
   const key = `event:${id}`;
   const now = new Date();
   
   // 检查是否存在且未过期
   if (memoryStore.has(key)) {
-    const timestamp = memoryStore.get(key);
-    if (now - timestamp < 3600000) { // 1小时
-      return true;
-    }
+    return true;
   }
   
   // 设置或更新时间戳
   memoryStore.set(key, now);
-  saveToFile();
   return false;
 }
 
@@ -141,18 +140,14 @@ export async function dedupEvent(id) {
  */
 export async function dedupCard(id) {
   const key = `card:${id}`;
-  const now = new Date();
   
-  // 检查是否存在且未过期
+  // 检查是否存在
   if (memoryStore.has(key)) {
-    const timestamp = memoryStore.get(key);
-    if (now - timestamp < 86400000 * 7) { // 24小时
-      return true;
-    }
+     return true;
   }
   
   // 设置或更新时间戳
+  const now = new Date();
   memoryStore.set(key, now);
-  saveToFile();
   return false;
 }

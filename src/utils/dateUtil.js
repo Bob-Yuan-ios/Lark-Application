@@ -19,6 +19,13 @@ export function calMissDate(input) {
     if(diffDays <= 0){
         return -1;
     }
+
+    if(diffDays > 14){
+        // 超过最大天数
+        console.log(`超过最大长度， 过去天数: ${diffDays} 天`);
+        return -1;
+    }
+
     console.log(`过去天数: ${diffDays} 天`);
     return `${diffDays}`;
 }

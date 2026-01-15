@@ -22,5 +22,6 @@ export const Templates = {
   done_without_prod: 'ctp_AAz5YbXs6Fps',
   notice_miss_accept: 'ctp_AAhV9a0Q18Oy',     
 
-  sheet_update: 'ctp_AAhcWY9L32d5'
+  sheet_update: 'ctp_AAhcWY9L32d5',
+  def_content: 'ctp_AAX6OIUiY4Sq' //def项目，线上故障提醒
 };
