@@ -14,9 +14,9 @@ import {
   notifyProdCompleteTask
 } from './src/services/larkCard.service.js';
 
-import {
-  merge_product_sheet
-} from './src/services/excel_merge.service.js';
+// import {
+//   merge_product_sheet
+// } from './src/services/excel_merge.service.js';
 
 const app = express();
 app.use(express.json());
@@ -39,13 +39,13 @@ cron.schedule('0 9 * * *', async () => {
 });
 
 
-// 周一到周四 17:00
-cron.schedule('55 17 * * 1-4', () => {
-  console.log('📅 周一到周四 17:00 执行');
-  merge_product_sheet();
-}, {
-  timezone: 'Asia/Shanghai'
-});
+// // 周一到周四 17:00
+// cron.schedule('55 17 * * 1-4', () => {
+//   console.log('📅 周一到周四 17:00 执行');
+//   merge_product_sheet();
+// }, {
+//   timezone: 'Asia/Shanghai'
+// });
 
 // // 周五 14:00
 // cron.schedule('0 14 * * 5', () => {
@@ -55,7 +55,5 @@ cron.schedule('55 17 * * 1-4', () => {
 //   timezone: 'Asia/Shanghai'
 // });
  
-  merge_product_sheet();
 
-  
 export default app
