@@ -28,7 +28,7 @@ backups
 # 编译版本
 build
 
-# 去重数据
-data
+# 持久化数据
+src/data
 
 deployment.md

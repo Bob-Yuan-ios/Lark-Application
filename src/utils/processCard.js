@@ -1,45 +1,81 @@
+import { PersistentMap } from './PersistentMap.js';
+
 // 运维人员列表
-const maintainIds = new Map();
+const maintainIds = new PersistentMap('maintainIds');
 
 // 验收人员列表
-const mentionIds = new Map();
+const mentionIds = new PersistentMap('mentionIds');
 
 // 已完成验收人员列表
-const completeIds = new Map();
+const completeIds = new PersistentMap('completeIds');
 
 // 验收结束后通知的人员列表
-const doneTaskOpenIds = new Map();
+const doneTaskOpenIds = new PersistentMap('doneTaskOpenIds');
 
 // 漏验收提醒信息列表
-const notifyInfos = new Map();
+const notifyInfos = new PersistentMap('notifyInfos');
 
 // 关联ID
-const reflectKeys = new Map();
+const reflectKeys = new PersistentMap('reflectKeys');
 
 // 绑定ID
-export function bindMessgeId(parent_messge_id, child_message_id){
-    reflectKeys.set(child_message_id, parent_messge_id);
+const reverseReflectKeys = new PersistentMap('reverseReflectKeys');
+
+function saveAllData() {
+  console.log('💾 正在保存所有数据...');
+  maintainIds.forceSave();
+  mentionIds.forceSave();
+  completeIds.forceSave();
+  doneTaskOpenIds.forceSave();
+  notifyInfos.forceSave();
+  reflectKeys.forceSave();
+  reverseReflectKeys.forceSave();
+  console.log('✅ 所有数据保存完成');
 }
 
-// 获取父消息ID
+process.on('SIGTERM', () => {
+  console.log('收到 SIGTERM 信号，保存数据后退出...');
+  saveAllData();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('收到 SIGINT 信号，保存数据后退出...');
+  saveAllData();
+  process.exit(0);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('未捕获的异常:', error);
+  saveAllData();
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未处理的 Promise 拒绝:', reason);
+  saveAllData();
+  process.exit(1);
+});
+
+export function bindMessageId(parent_message_id, child_message_id){
+    reflectKeys.set(child_message_id, parent_message_id);
+    reverseReflectKeys.set(parent_message_id, (reverseReflectKeys.get(parent_message_id) || new Set()).add(child_message_id));
+}
+
 export function getParentMessageId(child_message_id){
     return reflectKeys.get(child_message_id);
 }
 
-// 删除关联ID
-export function deleteCompleteBindId(parent_messge_id){
- for (const [key, value] of reflectKeys) {
-    if (value === parent_messge_id) {
-      reflectKeys.delete(key);
+export function deleteCompleteBindId(parent_message_id){
+    const childKeys = reverseReflectKeys.get(parent_message_id);
+    if (childKeys) {
+        childKeys.forEach(childKey => {
+            reflectKeys.delete(childKey);
+        });
+        reverseReflectKeys.delete(parent_message_id);
     }
-  }
 }
 
-
-/**
- * 找出 A 的 value Map 中 B 不存在的元素
- * result: Map<key, Map<missingKey, missingValue>>
- */
 export function diffMap() {
   const result = new Map();
 
@@ -53,15 +89,12 @@ export function diffMap() {
     const valueB = completeIds.get(keyA);
     const missingSubMap = new Map();
 
-    // 遍历 A[key] 的子 map
     valueA.forEach((subValueA, subKeyA) => {
       if (!valueB.has(subKeyA)) {
-        // B 的子 map 没有这个 key → 记录进 missingSubMap
         missingSubMap.set(subKeyA, subValueA);
       }
     });
 
-    // 仅在存在差异时才设置到结果中
     if (missingSubMap.size > 0) {
       result.set(keyA, missingSubMap);
     }
@@ -69,8 +102,6 @@ export function diffMap() {
 
   return result;
 }
-
-
 
 /**
  * 返回漏提醒信息： Map
@@ -115,42 +146,40 @@ export function initProcessWithMaintainMentions(users, key = '', prodIds = '', d
  */
 export function processMaintainCompleteTask(open_id, key = ''){
     console.log('\n查询缓存运维信息ID:', open_id, key);
-    if(maintainIds === undefined || maintainIds  == null){
+    if(!maintainIds){
         console.log('\n没有缓存运维人员');
         return new Map();
     }
     console.log(maintainIds);
 
-   let innnerMap = maintainIds.get(key);
-    if(innnerMap == undefined || innnerMap == null){
+   let innerMap = maintainIds.get(key);
+    if(!innerMap){
         console.log('没有查询到:完成升级后，需要响应验收的人员信息');
        return new Map();
     }
 
-   // 白名单用户,不验证身份
    const opend_id_marina = process.env.OPEN_ID_MARINA || 'ou_b38d19b1aa686c6a976e8886283dd285';
    const opend_id_bob = process.env.OPEN_ID_BOB || 'ou_fe19f72fdf3cb17914be9b409ab5acd4';
     if(open_id === opend_id_marina || open_id === opend_id_bob){
         console.log('白名单用户，不做查询');
-        innnerMap.delete('user');
-        return innnerMap;
+        innerMap.delete('user');
+        return innerMap;
     }
 
-    // 非白名单用户,验证身份
-   let userMap = innnerMap.get('user');
-   if(userMap == undefined || userMap == null){
+   let userMap = innerMap.get('user');
+   if(!userMap){
        console.log('用户列表信息异常');
        return new Map();
     }
 
    let name = userMap.get(open_id);
-   if(name == undefined || name == null){
+   if(!name){
         console.log('用户非授权运维人员，结束响应');
         return new Map();
     }
 
-    innnerMap.delete('user');
-    return innnerMap;
+    innerMap.delete('user');
+    return innerMap;
 }
 
 /**
@@ -196,6 +225,7 @@ export function initProcessWithProdMentions(users, key = '', doneId = '', titleT
     notifyInfos.set(key, outterMap);
 }
 
+
 /**
  * 查询完成消息人员的昵称；用于回显
  * @param {string} openId   用户唯一标识
@@ -205,14 +235,14 @@ export function initProcessWithProdMentions(users, key = '', doneId = '', titleT
 export function processDoneTask(openId, key = ''){
     console.log('\n缓存完成消息ID:', key);
 
-    if(mentionIds === undefined || mentionIds  == null){
+    if(!mentionIds){
         console.log('mentionIds 数据异常');
         return '';
     }
     console.log(mentionIds);
 
     const innerMap = mentionIds.get(key);
-    if(innerMap === undefined || innerMap  == null){
+    if(!innerMap){
         console.log('innerMap 数据异常');
         return '';
     }
@@ -221,12 +251,7 @@ export function processDoneTask(openId, key = ''){
         const user = innerMap.get(openId);
         const name = user.name;
 
-        let innerCompleteMap;
-        if(completeIds.get(key)){
-            innerCompleteMap = completeIds.get(key);
-        }else{
-            innerCompleteMap = new Map();
-        }
+        let innerCompleteMap = completeIds.get(key) || new Map();
         innerCompleteMap.set(openId, user);
         completeIds.set(key, innerCompleteMap);
 
@@ -244,15 +269,15 @@ export function processDoneTask(openId, key = ''){
  * @param {string} meesage_id 
  * @returns 
  */
-export function has_complete_task(open_id, meesage_id){
+export function has_complete_task(open_id, message_id){
 
    if(completeIds.size == 0) {
        console.log("没有人完成...");
       return false;
    }
 
-   if(completeIds.has(meesage_id)){
-      if(completeIds.get(meesage_id).has(open_id)){
+   if(completeIds.has(message_id)){
+      if(completeIds.get(message_id).has(open_id)){
         console.log("已完成");
         return true;
       }
@@ -262,7 +287,6 @@ export function has_complete_task(open_id, meesage_id){
    return false;
 }
 
-
 /**
  * 产品 -- 检查是否已全部验收
  * @param {string} key 
@@ -271,31 +295,30 @@ export function has_complete_task(open_id, meesage_id){
 export function isCompleteTask(key = ''){
     console.log('确认验收消息ID:', key);
     const doneTaskId = doneTaskOpenIds.get(key);
-    if(doneTaskId === undefined || doneTaskId  == null){
+    if(!doneTaskId){
         console.log('没有初始化完成人员信息');
         return '';
     }
     console.log('完成人:', doneTaskId);
 
-    if(mentionIds === undefined || mentionIds  == null || mentionIds.size === 0){
+    if(!mentionIds || mentionIds.size === 0){
         console.log('没有初始化验收人员信息');
         return '';
     }
 
     const innerMap = mentionIds.get(key);
-    if(innerMap === undefined || innerMap  == null){
+    if(!innerMap){
         console.log('没有初始化验收人员信息');
         return '';
     }
 
-    if(completeIds === undefined || completeIds  == null || completeIds.size === 0){
+    if(!completeIds || completeIds.size === 0){
        console.log('没有初始化已完成人员信息');
         return '';
     }
 
-
     const innerCompleteMap = completeIds.get(key);
-    if(innerCompleteMap === undefined || innerCompleteMap  == null){
+    if(!innerCompleteMap){
        console.log('没有已完成人员信息');
         return '';
     }

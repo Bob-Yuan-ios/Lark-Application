@@ -14,7 +14,7 @@ import {
 import { 
     diffMap,
     findNotifyInfo,
-    bindMessgeId,
+    bindMessageId,
     getParentMessageId,
     deleteCompleteBindId,
 
@@ -354,7 +354,7 @@ export async function sendCardMessage(payload, cached = false, parent_messge_id)
             initProcessWithProdMentions(res.data.mentions, res.data.message_id, doneTaskOpenId, title, receive_id, deadline, updateContent);
         }else if(parent_messge_id){
             console.log('发送漏验收提醒，缓存消息弹框关联关系');
-            bindMessgeId(parent_messge_id, res.data.message_id);
+            bindMessageId(parent_messge_id, res.data.message_id);
         }else{
             console.log("不需要缓存或没有要缓存的消息");
         }
