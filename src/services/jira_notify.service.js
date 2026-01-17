@@ -42,16 +42,24 @@ export async function task_deadline_notify(param){
       return {code: 0};
     }
 
-    const res = await client.contact.user.batchGetId({
-    data: {
-        emails: emails,
-    },
-        params: {
-        user_id_type : "open_id"
-        }
-    });
+    let res;
+    try {
+      res = await client.contact.user.batchGetId({
+        data: {
+            emails: emails,
+        },
+            params: {
+            user_id_type : "open_id"
+            }
+      });
+    } catch (error) {
+      console.error('批量查询用户ID失败:', error.message);
+      return {code: 0};
+    }
+
     if (!res.data?.user_list?.length) {
-        throw new Error(`找不到飞书用户: ${emails}`);
+        console.warn(`找不到飞书用户: ${emails}`);
+        return {code: 0};
     } 
 
     const map = {};
@@ -78,7 +86,8 @@ export async function task_deadline_notify(param){
 
     const cardPayload = buildCard(command, validIssues);  
     const message_id = process.env.JIRA_TIP_MESSAGE_ID;
-    await client.im.message.create({
+    try {
+      await client.im.message.create({
         params: {
             receive_id_type: "chat_id",
         },
@@ -87,7 +96,10 @@ export async function task_deadline_notify(param){
             msg_type: "interactive",
             content: JSON.stringify(cardPayload),
         },
-    });
+      });
+    } catch (error) {
+      console.error('发送任务提醒消息失败:', error.message);
+    }
 
     return {code: 0};
 }
@@ -205,20 +217,32 @@ export async function issue_chat_lark(payload) {
       request_comment = '';
   }
 
-  // 特定的逻辑
-  const email = 'bob.b@min123.net';
-  await send_email_lark_message(email, request_url, summary, request_comment);
-
-  if(reporter != null && reporter != undefined){
-     const email = reporter.emailAddress;
-     console.log('reporter.email:', email);
-     await send_email_lark_message(email, request_url, summary, request_comment);
+  try {
+    const email = 'bob.b@min123.net';
+    await send_email_lark_message(email, request_url, summary, request_comment);
+  } catch (error) {
+    console.error('发送消息给 bob.b@min123.net 失败:', error.message);
   }
 
   if(assignee != null && assignee != undefined){
      const email = assignee.emailAddress;
      console.log('assignee.email:', email);
-     await send_email_lark_message(email, request_url, summary, request_comment);
+     try {
+       await send_email_lark_message(email, request_url, summary, request_comment);
+     } catch (error) {
+       console.error(`发送消息给 assignee (${email}) 失败:`, error.message);
+     }
+  }
+
+
+  if(reporter != null && reporter != undefined){
+     const email = reporter.emailAddress;
+     console.log('reporter.email:', email);
+     try {
+       await send_email_lark_message(email, request_url, summary, request_comment);
+     } catch (error) {
+       console.error(`发送消息给 reporter (${email}) 失败:`, error.message);
+     }
   }
 
   return {code: 0};
